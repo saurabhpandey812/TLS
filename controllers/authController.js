@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const {generateToken} = require('../services/authService')
+const bcrypt = require('bcrypt');
 
 const signup = async (req, res) => {
     console.log('-------', req.body);
@@ -45,11 +46,18 @@ const login = async (req, res) => {
       $or: [
         email ? { email } : {},
         mobile ? { mobile } : {}
-      ],
-      password
+      ]
     });
 
     if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found or password incorrect",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
       return res.status(404).json({
         success: false,
         message: "User not found or password incorrect",
