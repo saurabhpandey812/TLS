@@ -2,12 +2,38 @@ const User = require('../models/User');
 const {generateToken} = require('../services/authService')
 const bcrypt = require('bcrypt');
 
+
 const signup = async (req, res) => {
-    console.log('-------', req.body);
-    
+  console.log('-------', req.body);
+
   try {
     const { email, name, password, mobile } = req.body;
 
+    // Check if mobile already exists
+    if (mobile) {
+      const mobileExists = await User.findOne({ mobile });
+      if (mobileExists) {
+        return res.status(400).json({
+          code: 400,
+          success: false,
+          message: "Mobile already exists",
+        });
+      }
+    }
+
+    // Check if email already exists
+    if (email) {
+      const emailExists = await User.findOne({ email });
+      if (emailExists) {
+        return res.status(400).json({
+          code: 400,
+          success: false,
+          message: "Email already exists",
+        });
+      }
+    }
+
+    // If neither exists, create the user
     const user = await User.create({
       name,
       email,
@@ -36,18 +62,20 @@ const signup = async (req, res) => {
 };
 
 
-
-
 const login = async (req, res) => {
   try {
     const { email, mobile, password } = req.body;
-    // Find user by email or mobile
-    const user = await User.findOne({
-      $or: [
-        email ? { email } : {},
-        mobile ? { mobile } : {}
-      ]
-    });
+    console.log("req.body",req.body)
+
+let user
+    if(mobile){
+
+       user=await User.findOne({mobile})
+    }
+
+    if(email){
+      user=await User.findOne({email})
+    }
 
     if (!user) {
       return res.status(404).json({
