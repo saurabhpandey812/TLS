@@ -12,11 +12,8 @@ const { sendSmsOtp, verifySmsOtp } = require('../services/twilioService');
  * @returns {string} - The normalized mobile number.
  */
 const normalizeMobile = (mobile) => {
-  // Remove any non-digit characters except the leading +
   mobile = mobile.replace(/[^\d+]/g, '');
-  // Ensure it starts with a +
   if (!mobile.startsWith('+')) {
-    // Assume US country code if none provided (modify as needed)
     mobile = `+91${mobile}`;
   }
   return mobile;
@@ -79,8 +76,8 @@ const signup = async (req, res) => {
     // Create new user
     const user = new User({
       name,
-      email: email || "",
-      mobile: mobile || "",
+      email: email,
+      mobile: mobile,
       password: hashedPassword,
       email_verified: false,
       mobile_verified: false,
