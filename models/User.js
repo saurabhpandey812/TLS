@@ -2,11 +2,38 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
 const userSchema = new mongoose.Schema({
-  name: { type: String, required: false },
-  email: { type: String, required: false, unique: false },
-  password: { type: String, required: false },
-  mobile: { type: String, required: false, unique: false },
+  name: { type: String, required: true },
+  email: { 
+    type: String, 
+    // required: false, 
+    unique: false, 
+    sparse: true,
+    trim: true,
+    lowercase: true,
+    match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email address'],
+  },
+  
+  mobile: { 
+    type: String,
+    required: false,
+    // unique: false,
+    sparse: true,
+    trim: true,
+    match: [/^\+\d{10,15}$/, 'Please enter a valid mobile number in E.164 format (e.g., +1234567890)'],
+  },
+  
+  password: { type: String, required: true },
+  email_verified: { type: Boolean, default: false },
+  mobile_verified: { type: Boolean, default: false },
+  otp: { type: String },
+  otpExpires: { type: Date },
+}, {
+  timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
+
+// Remove any unique indexes on email and mobile
+userSchema.index({ email: 1 }, { sparse: true, unique: false });
+userSchema.index({ mobile: 1 }, { sparse: true, unique: false });
 
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
