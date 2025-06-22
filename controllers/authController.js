@@ -68,6 +68,7 @@ const signup = async (req, res) => {
     }
 
     // Hash password
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     console.log("Password before hashing:", password);
@@ -357,6 +358,8 @@ const login = async (req, res) => {
     res.status(500).json({ success: false, message: 'Something went wrong during login.' });
   }
 };
+
+
 
 
 module.exports = { signup, login, verifyEmailOtp, verifyMobileOtp, resendOtp };

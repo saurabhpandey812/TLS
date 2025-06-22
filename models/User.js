@@ -35,15 +35,16 @@ const userSchema = new mongoose.Schema({
 userSchema.index({ email: 1 }, { sparse: true, unique: false });
 userSchema.index({ mobile: 1 }, { sparse: true, unique: false });
 
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (err) {
-    next(err);
-  }
-});
+// userSchema.pre('save', async function(next) {
+//   if (!this.isModified('password')) return next();
+//   try {
+//     const salt = await bcrypt.genSalt(10);
+//     this.password = await bcrypt.hash(this.password, salt);
+//     next();
+//   } catch (err) {
+//     next(err);
+//   }
+// });
+
 
 module.exports = mongoose.model('User', userSchema);
