@@ -11,6 +11,7 @@ const { sendSmsOtp, verifySmsOtp } = require('../services/twilioService');
  * @param {string} mobile - The mobile number to normalize.
  * @returns {string} - The normalized mobile number.
  */
+
 const normalizeMobile = (mobile) => {
   mobile = mobile.replace(/[^\d+]/g, '');
   if (!mobile.startsWith('+')) {
@@ -19,9 +20,6 @@ const normalizeMobile = (mobile) => {
   return mobile;
 };
 
-/**
- * Handles the first step of registration: sending an OTP via email or SMS.
- */
 
 
 const signup = async (req, res) => {
@@ -74,14 +72,26 @@ const signup = async (req, res) => {
     
 
     // Create new user
-    const user = new User({
-      name,
-      email: email,
-      mobile: mobile,
-      password: hashedPassword,
-      email_verified: false,
-      mobile_verified: false,
-    });
+    // const user = new User({
+    //   name,
+    //   email: email,
+    //   mobile: mobile,
+    //   password: hashedPassword,
+    //   email_verified: false,
+    //   mobile_verified: false,
+    // });
+
+    const userData = {
+          name,      
+          password: hashedPassword,
+          email_verified: false,
+          mobile_verified: false,
+         };
+
+     if (email) userData.email = email;
+     if (mobile) userData.mobile = mobile;
+
+const user = new User(userData);
 
     await user.save();
 
@@ -305,7 +315,7 @@ const login = async (req, res) => {
       user = await User.findOne({ email });
     } else if (mobile) {
       // For mobile login, try both normalized and original mobile
-      const normalizedMobile = normalizeMobile(mobile);
+    const normalizedMobile = normalizeMobile(mobile);
       user = await User.findOne({ 
         $or: [
           { mobile: mobile },

@@ -1,4 +1,3 @@
-// Database connection from env
 const mongoose = require('mongoose');
 
 const connectDB = async () => {

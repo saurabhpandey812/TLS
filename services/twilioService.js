@@ -1,4 +1,3 @@
-// twilioService.js
 const twilio = require('twilio');
 require('dotenv').config();
 
@@ -7,7 +6,7 @@ const client = twilio(
   process.env.TWILIO_AUTH_TOKEN
 );
 
-const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID; // Add this to your .env file
+const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
 
 /**
  * Sends an OTP to the specified mobile number using Twilio Verify.
@@ -16,7 +15,6 @@ const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID; // Add this to y
  */
 const sendSmsOtp = async (mobile) => {
   try {
-    // Ensure mobile number is in E.164 format
     if (!mobile.startsWith('+')) {
       return { success: false, message: 'Mobile number must be in E.164 format (e.g., +1234567890)' };
     }
@@ -47,7 +45,6 @@ const sendSmsOtp = async (mobile) => {
  */
 const verifySmsOtp = async (mobile, otp) => {
   try {
-    // Ensure mobile number is in E.164 format
     if (!mobile.startsWith('+')) {
       return { success: false, message: 'Mobile number must be in E.164 format (e.g., +1234567890)' };
     }
