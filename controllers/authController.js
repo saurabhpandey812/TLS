@@ -51,16 +51,37 @@ const signup = async (req, res) => {
     if (mobile) query.push({ mobile });
 
     const existingUser = await User.findOne({ $or: query });
+
+    // if (existingUser) {
+    //   if (existingUser.email_verified || existingUser.mobile_verified) {
+    //     return res.status(400).json({
+    //       success: false,
+    //       message: 'An account with this email or mobile already exists and is verified.',
+    //     });
+    //   }
+    //   // Delete unverified user to allow re-registration
+    //   await User.deleteOne({ _id: existingUser._id });
+    // }
+
+
     if (existingUser) {
-      if (existingUser.email_verified || existingUser.mobile_verified) {
-        return res.status(400).json({
-          success: false,
-          message: 'An account with this email or mobile already exists and is verified.',
-        });
-      }
-      // Delete unverified user to allow re-registration
-      await User.deleteOne({ _id: existingUser._id });
-    }
+  if (email && existingUser.email === email && existingUser.email_verified) {
+    return res.status(400).json({
+      success: false,
+      message: 'An account with this email already exists.',
+    });
+  }
+
+  if (mobile && existingUser.mobile === mobile && existingUser.mobile_verified) {
+    return res.status(400).json({
+      success: false,
+      message: 'An account with this mobile already exists.',
+    });
+  }
+
+  // Allow re-registration if not verified
+  await User.deleteOne({ _id: existingUser._id });
+}
 
     // Hash password
 
