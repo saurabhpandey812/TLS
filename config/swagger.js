@@ -10,7 +10,7 @@ const options = {
     },
     servers: [
       { url: 'http://localhost:3001', description: 'HTTP (local)' },
-      { url: 'https://localhost:3001', description: 'HTTPS (local)' }
+      { url: 'https://tls-maf3.onrender.com/', description: 'HTTPS (server)' }
     ],
     tags: [
       {
