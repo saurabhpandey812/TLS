@@ -1,5 +1,5 @@
 // controllers/authController.js
-const User = require('../models/User');
+const User = require('../models/Profile');
 const { generateToken } = require('../services/authService');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
@@ -52,20 +52,10 @@ const signup = async (req, res) => {
 
     const existingUser = await User.findOne({ $or: query });
 
-    // if (existingUser) {
-    //   if (existingUser.email_verified || existingUser.mobile_verified) {
-    //     return res.status(400).json({
-    //       success: false,
-    //       message: 'An account with this email or mobile already exists and is verified.',
-    //     });
-    //   }
-    //   // Delete unverified user to allow re-registration
-    //   await User.deleteOne({ _id: existingUser._id });
-    // }
-
+ console.log("aaaa",existingUser)
 
     if (existingUser) {
-  if (email && existingUser.email === email && existingUser.email_verified) {
+    if (email && existingUser.email === email && existingUser.email_verified) {
     return res.status(400).json({
       success: false,
       message: 'An account with this email already exists.',
@@ -89,18 +79,6 @@ const signup = async (req, res) => {
 
     console.log("Password before hashing:", password);
     console.log("Hashed password:", hashedPassword);
-
-    
-
-    // Create new user
-    // const user = new User({
-    //   name,
-    //   email: email,
-    //   mobile: mobile,
-    //   password: hashedPassword,
-    //   email_verified: false,
-    //   mobile_verified: false,
-    // });
 
     const userData = {
           name,      
@@ -161,9 +139,8 @@ const user = new User(userData);
 
 
 
-/**
- * Verifies the email OTP and completes the registration.
- */
+// Verifies the email OTP and completes the registration.
+
 const verifyEmailOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;

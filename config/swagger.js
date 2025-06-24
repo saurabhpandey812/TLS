@@ -4,13 +4,23 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Your API Title',
+      title: 'User Profile API',
       version: '1.0.0',
-      description: 'API documentation with JWT authentication',
+      description: 'API documentation for user authentication and profile management',
     },
     servers: [
       { url: 'http://localhost:3001', description: 'HTTP (local)' },
       { url: 'https://localhost:3001', description: 'HTTPS (local)' }
+    ],
+    tags: [
+      {
+        name: 'Profile',
+        description: 'User profile operations'
+      },
+      {
+        name: 'Auth',
+        description: 'Authentication operations'
+      }
     ],
     components: {
       securitySchemes: {
