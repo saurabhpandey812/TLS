@@ -268,17 +268,40 @@ const resendOtp = async (req, res) => {
         message: `A new SMS OTP has been sent to ${normalizedMobile}.`,
       });
     } else if (email && !user.email_verified) {
+      // Generate new OTP
       const otp = crypto.randomInt(100000, 999999).toString();
-      const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+      const otpExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes expiry
+      
+      console.log('Generated new OTP for resend:', otp);
+      
+      // Update user with new OTP
       user.otp = otp;
       user.otpExpires = otpExpires;
       await user.save();
-      await sendEmail({
-        email: user.email,
-        subject: 'Your New Verification Code',
-        message: `Your new one-time verification code is: ${otp}`,
+      
+      console.log('User OTP saved:', user.otp);
+      
+      // Send email with OTP
+      try {
+        await sendEmail({
+          email: user.email,
+          subject: 'Your New Verification Code',
+          message: `Your new one-time verification code is: ${otp}`,
+        });
+        console.log('Email sent successfully with OTP:', otp);
+      } catch (emailError) {
+        console.error('Email sending failed:', emailError);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to send email OTP. Please try again.',
+          error: emailError.message,
+        });
+      }
+      
+      return res.status(200).json({ 
+        success: true, 
+        message: `A new OTP has been sent to ${email}.`,
       });
-      return res.status(200).json({ success: true, message: `A new OTP has been sent to ${email}.` });
     } else {
       return res.status(400).json({
         success: false,
