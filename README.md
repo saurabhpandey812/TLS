@@ -38,7 +38,7 @@ EMAIL_USER=your_email@gmail.com
 EMAIL_PASSWORD=your_app_password_here
 
 # Application Configuration
-BASE_URL=http://localhost:3000
+BASE_URL=http://localhost:3001a
 PORT=3000
 ```
 

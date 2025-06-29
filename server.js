@@ -1,16 +1,17 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const connectDB = require('./config/db');
+const { connectDB } = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const profileRoutes = require('./routes/profileRoutes');
+const followerRoutes = require('./routes/followerRoutes');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Connect to MongoDB
+// Connect to MongoDB or fallback to mock database
 connectDB();
 
 app.use(cors());
@@ -20,6 +21,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/follow', followerRoutes);
 
 app.get('/', (req, res) => {
   res.send("Hello World");
