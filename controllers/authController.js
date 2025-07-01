@@ -336,7 +336,7 @@ const login = async (req, res) => {
       user = await User.findOne({ email });
     } else if (mobile) {
       // For mobile login, try both normalized and original mobile
-    const normalizedMobile = normalizeMobile(mobile);
+      const normalizedMobile = normalizeMobile(mobile);
       user = await User.findOne({ 
         $or: [
           { mobile: mobile },
@@ -349,6 +349,14 @@ const login = async (req, res) => {
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'Invalid credentials.' });
+    }
+
+    // Verification check for email or mobile
+    if (email && !user.email_verified) {
+      return res.status(403).json({ success: false, message: 'Email is not verified/registered.' });
+    }
+    if (mobile && !user.mobile_verified) {
+      return res.status(403).json({ success: false, message: 'Mobile is not verified/registered.' });
     }
 
     console.log("Stored hash:", user.password);

@@ -8,7 +8,7 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8000;
 
 // Connect to MongoDB
 connectDB();
@@ -22,7 +22,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 
 app.get('/', (req, res) => {
-  res.send("Hello World");
+  res.send("Server Connected Successfully");
 });
 
 app.listen(PORT, () => {
