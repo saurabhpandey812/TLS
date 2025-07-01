@@ -34,7 +34,7 @@ exports.updateProfile = async (req, res) => {
     if (!name || !email) {
       return res.status(400).json({
         success: false,
-        message: 'Name and Email are required fields'
+        message: 'Name and email are required fields'
       });
     }
 

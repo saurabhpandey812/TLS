@@ -268,17 +268,40 @@ const resendOtp = async (req, res) => {
         message: `A new SMS OTP has been sent to ${normalizedMobile}.`,
       });
     } else if (email && !user.email_verified) {
+      // Generate new OTP
       const otp = crypto.randomInt(100000, 999999).toString();
-      const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+      const otpExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes expiry
+      
+      console.log('Generated new OTP for resend:', otp);
+      
+      // Update user with new OTP
       user.otp = otp;
       user.otpExpires = otpExpires;
       await user.save();
-      await sendEmail({
-        email: user.email,
-        subject: 'Your New Verification Code',
-        message: `Your new one-time verification code is: ${otp}`,
+      
+      console.log('User OTP saved:', user.otp);
+      
+      // Send email with OTP
+      try {
+        await sendEmail({
+          email: user.email,
+          subject: 'Your New Verification Code',
+          message: `Your new one-time verification code is: ${otp}`,
+        });
+        console.log('Email sent successfully with OTP:', otp);
+      } catch (emailError) {
+        console.error('Email sending failed:', emailError);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to send email OTP. Please try again.',
+          error: emailError.message,
+        });
+      }
+      
+      return res.status(200).json({ 
+        success: true, 
+        message: `A new OTP has been sent to ${email}.`,
       });
-      return res.status(200).json({ success: true, message: `A new OTP has been sent to ${email}.` });
     } else {
       return res.status(400).json({
         success: false,
@@ -313,7 +336,7 @@ const login = async (req, res) => {
       user = await User.findOne({ email });
     } else if (mobile) {
       // For mobile login, try both normalized and original mobile
-    const normalizedMobile = normalizeMobile(mobile);
+      const normalizedMobile = normalizeMobile(mobile);
       user = await User.findOne({ 
         $or: [
           { mobile: mobile },
@@ -326,6 +349,14 @@ const login = async (req, res) => {
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'Invalid credentials.' });
+    }
+
+    // Verification check for email or mobile
+    if (email && !user.email_verified) {
+      return res.status(403).json({ success: false, message: 'Email is not verified/registered.' });
+    }
+    if (mobile && !user.mobile_verified) {
+      return res.status(403).json({ success: false, message: 'Mobile is not verified/registered.' });
     }
 
     console.log("Stored hash:", user.password);

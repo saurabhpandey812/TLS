@@ -39,13 +39,10 @@ const sendEmail = async (options) => {
                     Thank you for registering with us! To complete your registration, please use the One-Time Password (OTP) below:
                   </p>
                   <div style="background-color: #f0f0f0; display: inline-block; padding: 15px 25px; border-radius: 4px; margin: 20px 0;">
-                    <span style="color: #4a90e2; font-size: 24px; font-weight: bold; letter-spacing: 2px;">${options.message.match(/Your one-time verification code is: (\d+)/)?.[1] || 'N/A'}</span>
+                    <span style="color: #4a90e2; font-size: 24px; font-weight: bold; letter-spacing: 2px;">${options.message.match(/Your (?:new )?one-time verification code is: (\d+)/)?.[1] || 'N/A'}</span>
                   </div>
                   <p style="color: #666666; font-size: 14px; line-height: 1.5; margin: 0 0 20px;">
-                    This OTP is valid for 10 minutes. If you didn’t request this, please ignore this email.
-                  </p>
-                  <p style="color: #666666; font-size: 14px; line-height: 1.5; margin: 0;">
-                    Email: <strong>${options.email}</strong>
+                    This OTP is valid for 10 minutes. If you didn't request this, please ignore this email.
                   </p>
                 </td>
               </tr>
