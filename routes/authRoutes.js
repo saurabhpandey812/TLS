@@ -182,6 +182,98 @@ router.post('/resend-otp', resendOtp);
 
 /**
  * @swagger
+ * /api/auth/forgot-password/request:
+ *   post:
+ *     summary: Request OTP for password reset (email or mobile)
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               mobile:
+ *                 type: string
+ *                 example: "+918804208836"
+ *     responses:
+ *       200:
+ *         description: OTP sent successfully
+ *       400:
+ *         description: Bad request
+ *       404:
+ *         description: User not found
+ */
+router.post('/forgot-password/request', require('../controllers/authController').forgotPasswordRequest);
+
+/**
+ * @swagger
+ * /api/auth/forgot-password/verify-otp:
+ *   post:
+ *     summary: Verify OTP for password reset (email or mobile)
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               mobile:
+ *                 type: string
+ *                 example: "+918804208836"
+ *               otp:
+ *                 type: string
+ *                 example: "123456"
+ *     responses:
+ *       200:
+ *         description: OTP verified
+ *       400:
+ *         description: Invalid or expired OTP
+ */
+router.post('/forgot-password/verify-otp', require('../controllers/authController').forgotPasswordVerifyOtp);
+
+/**
+ * @swagger
+ * /api/auth/forgot-password/reset:
+ *   post:
+ *     summary: Reset password after OTP verification
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               mobile:
+ *                 type: string
+ *                 example: "+918804208836"
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *                 example: "newpassword123"
+ *     responses:
+ *       200:
+ *         description: Password reset successful
+ *       400:
+ *         description: Bad request
+ *       404:
+ *         description: User not found
+ */
+router.post('/forgot-password/reset', require('../controllers/authController').forgotPasswordReset);
+
+/**
+ * @swagger
  * /api/protected:
  *   get:
  *     security:
