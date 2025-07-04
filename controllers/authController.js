@@ -5,23 +5,10 @@ const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const sendEmail = require('../services/emailService');
 const { sendSmsOtp, verifySmsOtp } = require('../services/twilioService');
-const { normalizeMobile, generateOtp } = require('../utils/authUtils');
+const { generateOtp } = require('../utils/authUtils');
 const { createUserAndSendOtp } = require('../services/authService');
 const { verifyEmailOtpService, verifyMobileOtpService, resendOtpService } = require('../services/authService');
 const { loginService } = require('../services/authService');
-
-/**
- * Normalizes a mobile number to E.164 format.
- * @param {string} mobile - The mobile number to normalize.
- * @returns {string} - The normalized mobile number.
- */
-const normalizeMobile = (mobile) => {
-  mobile = mobile.replace(/[^\d+]/g, '');
-  if (!mobile.startsWith('+')) {
-    mobile = `+91${mobile}`;
-  }
-  return mobile;
-};
 
 // Optimized signup function
 const signup = async (req, res) => {
@@ -34,17 +21,6 @@ const signup = async (req, res) => {
         success: false,
         message: 'Either email or mobile number is required for registration.',
       });
-    }
-
-    // Normalize mobile number if provided
-    if (mobile) {
-      mobile = normalizeMobile(mobile);
-      if (!/^\+\d{10,15}$/.test(mobile)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid mobile number format. Use E.164 format (e.g., +1234567890).',
-        });
-      }
     }
 
     // Optimized database query - check for existing users
@@ -184,15 +160,6 @@ const verifyMobileOtp = async (req, res) => {
     let { mobile, otp } = req.body;
     if (!mobile || !otp) {
       return res.status(400).json({ success: false, message: 'Mobile number and OTP are required.' });
-    }
-
-    // Normalize mobile number
-    mobile = normalizeMobile(mobile);
-    if (!/^\+\d{10,15}$/.test(mobile)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid mobile number format. Use E.164 format (e.g., +1234567890).',
-      });
     }
 
     // For development, skip Twilio verification
