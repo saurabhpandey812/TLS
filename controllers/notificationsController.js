@@ -1,17 +1,11 @@
 const Notification = require('../models/Notification');
+const { getNotificationsService, markAsReadService, deleteNotificationService } = require('../services/notificationsService');
 
 // Get notifications for the logged-in user (most recent first)
 exports.getNotifications = async (req, res) => {
   try {
-    const userId = req.user._id;
-    const { page = 1, limit = 20 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const notifications = await Notification.find({ recipient: userId, isDeleted: false })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-    const total = await Notification.countDocuments({ recipient: userId, isDeleted: false });
-    res.json({ notifications, total, page: parseInt(page), limit: parseInt(limit) });
+    const result = await getNotificationsService({ userId: req.user._id, page: req.query.page, limit: req.query.limit });
+    return res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ message: 'Error fetching notifications', error: err.message });
   }
@@ -20,16 +14,9 @@ exports.getNotifications = async (req, res) => {
 // Mark notifications as read (accepts array of notification IDs)
 exports.markAsRead = async (req, res) => {
   try {
-    const userId = req.user._id;
-    const { notificationIds } = req.body;
-    if (!Array.isArray(notificationIds) || notificationIds.length === 0) {
-      return res.status(400).json({ message: 'No notification IDs provided' });
-    }
-    await Notification.updateMany(
-      { recipient: userId, _id: { $in: notificationIds } },
-      { $set: { isRead: true, readAt: new Date() } }
-    );
-    res.json({ message: 'Notifications marked as read' });
+    const result = await markAsReadService({ userId: req.user._id, notificationIds: req.body.notificationIds });
+    if (!result.success) return res.status(400).json(result);
+    return res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ message: 'Error marking notifications as read', error: err.message });
   }
@@ -38,17 +25,9 @@ exports.markAsRead = async (req, res) => {
 // Delete a notification (soft delete)
 exports.deleteNotification = async (req, res) => {
   try {
-    const userId = req.user._id;
-    const { id } = req.params;
-    const notification = await Notification.findOneAndUpdate(
-      { _id: id, recipient: userId },
-      { $set: { isDeleted: true } },
-      { new: true }
-    );
-    if (!notification) {
-      return res.status(404).json({ message: 'Notification not found' });
-    }
-    res.json({ message: 'Notification deleted' });
+    const result = await deleteNotificationService({ userId: req.user._id, id: req.params.id });
+    if (!result.success) return res.status(404).json(result);
+    return res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ message: 'Error deleting notification', error: err.message });
   }

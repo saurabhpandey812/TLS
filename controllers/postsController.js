@@ -3,6 +3,7 @@ const Post = require('../models/Post');
 const Notification = require('../models/Notification');
 const Profile = require('../models/Profile');
 const cloudinary = require('cloudinary').v2;
+const { likePostService, unlikePostService, getPostLikesService, createPostService, addCommentService, deleteCommentService, likeCommentService, unlikeCommentService, addReplyService, deleteReplyService } = require('../services/postsService');
 
 cloudinary.config({
   cloud_name: 'rits7275',
@@ -15,65 +16,9 @@ exports.likePost = async (req, res) => {
   try {
     const userId = req.user._id;
     const postId = req.params.id;
-
-    // Check if already liked
-    const existing = await Like.findOne({ user: userId, post: postId });
-    if (existing) {
-      return res.status(400).json({ message: 'Already liked' });
-    }
-
-    // Create like
-    await Like.create({ user: userId, post: postId });
-    // Update post's like count and likes array
-    const post = await Post.findByIdAndUpdate(
-      postId,
-      { $addToSet: { likes: userId }, $inc: { likeCount: 1 } },
-      { new: true }
-    );
-
-    // Notification (if not self-like)
-    if (post && String(post.author) !== String(userId)) {
-      // Check for existing unread notification for this like
-      const existing = await Notification.findOne({
-        recipient: post.author,
-        sender: userId,
-        type: 'like',
-        'data.postId': postId,
-        'data.likedBy': userId,
-        isRead: false,
-      });
-      if (!existing) {
-        await Notification.create({
-          recipient: post.author,
-          sender: userId,
-          type: 'like',
-          title: 'New Like',
-          message: `${req.user.name || 'Someone'} liked your post`,
-          data: { postId, likedBy: userId },
-          isRead: false,
-        });
-      }
-    }
-
-    // Analytics log
-    console.log(`User ${userId} liked post ${postId} at ${new Date().toISOString()}`);
-
-    // Emit real-time event for post like
-    const io = req.app.get('io');
-    if (io) {
-      const senderProfile = req.user;
-      io.emit('new_post_like', {
-        postId,
-        userId,
-        sender: {
-          _id: senderProfile._id,
-          name: senderProfile.name,
-          avatar: senderProfile.avatar || '',
-        },
-      });
-    }
-
-    res.json({ message: 'Post liked', likeCount: post.likeCount });
+    const result = await likePostService({ userId, postId, user: req.user, io: req.app.get('io') });
+    if (!result.success) return res.status(400).json(result);
+    return res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ message: 'Error liking post', error: err.message });
   }
@@ -84,28 +29,9 @@ exports.unlikePost = async (req, res) => {
   try {
     const userId = req.user._id;
     const postId = req.params.id;
-
-    // Remove like
-    await Like.deleteOne({ user: userId, post: postId });
-    // Update post's like count and likes array
-    const post = await Post.findByIdAndUpdate(
-      postId,
-      { $pull: { likes: userId }, $inc: { likeCount: -1 } },
-      { new: true }
-    );
-
-    // Remove like notification
-    await Notification.deleteOne({
-      user: post.author,
-      type: 'like',
-      'data.postId': postId,
-      'data.likedBy': userId,
-    });
-
-    // Analytics log
-    console.log(`User ${userId} unliked post ${postId} at ${new Date().toISOString()}`);
-
-    res.json({ message: 'Post unliked', likeCount: post.likeCount });
+    const result = await unlikePostService({ userId, postId });
+    if (!result.success) return res.status(400).json(result);
+    return res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ message: 'Error unliking post', error: err.message });
   }
@@ -115,12 +41,8 @@ exports.unlikePost = async (req, res) => {
 exports.getPostLikes = async (req, res) => {
   try {
     const postId = req.params.id;
-    const likes = await Like.find({ postId }).populate({
-      path: 'userId',
-      select: 'name avatar',
-      model: Profile,
-    });
-    res.json({ likes });
+    const result = await getPostLikesService(postId);
+    return res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ message: 'Error fetching likes', error: err.message });
   }
@@ -171,22 +93,9 @@ exports.createPost = async (req, res) => {
     }
 
     // Set both user and author fields for compatibility
-    const post = await Post.create({
-      user: userId,
-      author: userId,
-      content,
-      images: uploadedImages,
-      video: uploadedVideo,
-    });
-
-    // Populate author for real-time broadcast
-    const populatedPost = await Post.findById(post._id).populate('author', 'name avatar');
-
-    // Emit real-time event
-    const io = req.app.get('io');
-    if (io) io.emit('new_post', populatedPost);
-
-    res.status(201).json({ message: 'Post created', post: populatedPost });
+    const result = await createPostService({ userId, content, images, video, io: req.app.get('io') });
+    if (!result.success) return res.status(400).json(result);
+    return res.status(201).json(result);
   } catch (err) {
     console.error('Error creating post:', err.stack || err);
     res.status(500).json({ message: 'Error creating post', error: err.message });
@@ -267,52 +176,9 @@ exports.addComment = async (req, res) => {
     const { content } = req.body;
     const userId = req.user.profile || req.user._id; // support both Profile and User
     if (!content || !userId) return res.status(400).json({ message: 'Content and user required' });
-    const comment = { content, author: userId, createdAt: new Date() };
-    const post = await Post.findByIdAndUpdate(
-      postId,
-      { $push: { comments: comment } },
-      { new: true }
-    ).populate('comments.author', 'name avatar');
-    if (!post) return res.status(404).json({ message: 'Post not found' });
-    // Create notification for post owner if commenter is not the owner
-    if (String(post.user) !== String(userId)) {
-      // Check for existing unread notification for this comment
-      const existing = await Notification.findOne({
-        recipient: post.user,
-        sender: userId,
-        type: 'comment',
-        'data.postId': postId,
-        'data.commentId': post.comments[post.comments.length - 1]._id,
-        isRead: false,
-      });
-      if (!existing) {
-        await Notification.create({
-          recipient: post.user,
-          sender: userId,
-          type: 'comment',
-          title: 'New Comment',
-          message: `${req.user.name || 'Someone'} commented on your post: ${content}`,
-          data: { postId, commentId: post.comments[post.comments.length - 1]._id },
-          isRead: false,
-        });
-      }
-    }
-    const io = req.app.get('io');
-    if (io && post.user) {
-      // Populate sender details for socket payload
-      const senderProfile = req.user;
-      io.to(String(post.user)).emit('new_comment', {
-        postId,
-        comment: post.comments[post.comments.length - 1],
-        post: { _id: post._id, content: post.content },
-        sender: {
-          _id: senderProfile._id,
-          name: senderProfile.name,
-          avatar: senderProfile.avatar || '',
-        },
-      });
-    }
-    res.status(201).json({ comment: post.comments[post.comments.length - 1] });
+    const result = await addCommentService({ postId, content, userId, user: req.user, io: req.app.get('io') });
+    if (!result.success) return res.status(400).json(result);
+    return res.status(201).json(result);
   } catch (err) {
     res.status(500).json({ message: 'Error adding comment', error: err.message });
   }
@@ -324,17 +190,9 @@ exports.deleteComment = async (req, res) => {
     const postId = req.params.id;
     const commentId = req.params.commentId;
     const userId = req.user.profile || req.user._id;
-    const post = await Post.findById(postId);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
-    const comment = post.comments.id(commentId);
-    if (!comment) return res.status(404).json({ message: 'Comment not found' });
-    // Only author or admin can delete
-    if (String(comment.author) !== String(userId)) {
-      return res.status(403).json({ message: 'Not authorized to delete this comment' });
-    }
-    comment.remove();
-    await post.save();
-    res.json({ message: 'Comment deleted' });
+    const result = await deleteCommentService({ postId, commentId, userId });
+    if (!result.success) return res.status(400).json(result);
+    return res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ message: 'Error deleting comment', error: err.message });
   }
@@ -345,17 +203,9 @@ exports.likeComment = async (req, res) => {
   try {
     const { postId, commentId } = req.params;
     const userId = req.user._id;
-    const post = await Post.findById(postId);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
-    const comment = post.comments.id(commentId);
-    if (!comment) return res.status(404).json({ message: 'Comment not found' });
-    if (comment.likes.includes(userId)) return res.status(400).json({ message: 'Already liked' });
-    comment.likes.push(userId);
-    await post.save();
-    // Emit real-time event for comment like
-    const io = req.app.get('io');
-    if (io) io.emit('new_comment_like', { postId, commentId, userId });
-    res.json({ likes: comment.likes });
+    const result = await likeCommentService({ postId, commentId, userId, io: req.app.get('io') });
+    if (!result.success) return res.status(400).json(result);
+    return res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ message: 'Error liking comment', error: err.message });
   }
@@ -366,13 +216,9 @@ exports.unlikeComment = async (req, res) => {
   try {
     const { postId, commentId } = req.params;
     const userId = req.user._id;
-    const post = await Post.findById(postId);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
-    const comment = post.comments.id(commentId);
-    if (!comment) return res.status(404).json({ message: 'Comment not found' });
-    comment.likes = comment.likes.filter(id => String(id) !== String(userId));
-    await post.save();
-    res.json({ likes: comment.likes });
+    const result = await unlikeCommentService({ postId, commentId, userId });
+    if (!result.success) return res.status(400).json(result);
+    return res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ message: 'Error unliking comment', error: err.message });
   }
@@ -385,51 +231,9 @@ exports.addReply = async (req, res) => {
     const { content } = req.body;
     const userId = req.user.profile || req.user._id;
     if (!content || !userId) return res.status(400).json({ message: 'Content and user required' });
-    const post = await Post.findById(postId).populate('comments.author', 'name avatar');
-    if (!post) return res.status(404).json({ message: 'Post not found' });
-    const comment = post.comments.id(commentId);
-    if (!comment) return res.status(404).json({ message: 'Comment not found' });
-    const reply = { content, author: userId, createdAt: new Date(), likes: [] };
-    comment.replies.push(reply);
-    await post.save();
-    // Create notification for comment author if replier is not the author
-    if (String(comment.author) !== String(userId)) {
-      const replyObj = comment.replies[comment.replies.length - 1];
-      const existing = await Notification.findOne({
-        recipient: comment.author,
-        sender: userId,
-        type: 'reply',
-        'data.postId': postId,
-        'data.commentId': commentId,
-        'data.replyId': replyObj._id,
-        isRead: false,
-      });
-      if (!existing) {
-        await Notification.create({
-          recipient: comment.author,
-          sender: userId,
-          type: 'reply',
-          title: 'New Reply',
-          message: `${req.user.name || 'Someone'} replied to your comment: ${replyObj.content}`,
-          data: { postId, commentId, replyId: replyObj._id },
-          isRead: false,
-        });
-      }
-    }
-    if (io) {
-      const senderProfile = req.user;
-      io.emit('new_reply', {
-        postId,
-        commentId,
-        reply: comment.replies[comment.replies.length - 1],
-        sender: {
-          _id: senderProfile._id,
-          name: senderProfile.name,
-          avatar: senderProfile.avatar || '',
-        },
-      });
-    }
-    res.status(201).json({ reply: comment.replies[comment.replies.length - 1] });
+    const result = await addReplyService({ postId, commentId, content, userId, user: req.user, io: req.app.get('io') });
+    if (!result.success) return res.status(400).json(result);
+    return res.status(201).json(result);
   } catch (err) {
     res.status(500).json({ message: 'Error adding reply', error: err.message });
   }
@@ -440,18 +244,9 @@ exports.deleteReply = async (req, res) => {
   try {
     const { postId, commentId, replyId } = req.params;
     const userId = req.user.profile || req.user._id;
-    const post = await Post.findById(postId);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
-    const comment = post.comments.id(commentId);
-    if (!comment) return res.status(404).json({ message: 'Comment not found' });
-    const reply = comment.replies.id(replyId);
-    if (!reply) return res.status(404).json({ message: 'Reply not found' });
-    if (String(reply.author) !== String(userId)) {
-      return res.status(403).json({ message: 'Not authorized to delete this reply' });
-    }
-    reply.remove();
-    await post.save();
-    res.json({ message: 'Reply deleted' });
+    const result = await deleteReplyService({ postId, commentId, replyId, userId });
+    if (!result.success) return res.status(400).json(result);
+    return res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ message: 'Error deleting reply', error: err.message });
   }

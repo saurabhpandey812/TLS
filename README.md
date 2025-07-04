@@ -2,6 +2,86 @@
 
 This project includes a complete authentication system with two-step registration using email OTP verification.
 
+---
+
+## Project Structure (Refactored)
+
+```
+/controllers
+  authController.js
+  profileController.js
+  postsController.js
+  followerController.js
+  notificationsController.js
+/services
+  authService.js
+  profileService.js
+  postsService.js
+  followerService.js
+  notificationsService.js
+/utils
+  authUtils.js
+/models
+  (all Mongoose models)
+```
+
+## Architecture Overview
+- **Controllers:** Only handle HTTP request/response, delegate all business logic.
+- **Services:** Contain all business logic, database operations, notifications, and real-time event handling.
+- **Utils:** Reusable helper functions (e.g., OTP, Cloudinary upload).
+- **Models:** Mongoose schemas for all entities.
+
+## How to Add a New Feature
+1. Add business logic to a service file.
+2. Call the service from the controller.
+3. Add/modify routes as needed.
+
+## Example Endpoint Flow
+
+```
+POST /api/posts
+  |
+  v
+postsController.createPost(req, res)
+  |
+  v
+postsService.createPostService({ ... })
+  |
+  v
+(Post is created, images uploaded, notifications sent, real-time event emitted)
+```
+
+## Environment Variables
+
+Document all required environment variables, especially for third-party services (Cloudinary, email, etc.):
+
+```
+MONGODB_URI=mongodb://localhost:27017/your_database_name
+JWT_SECRET=your_jwt_secret_key_here
+JWT_EXPIRES_IN=1d
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASSWORD=your_app_password_here
+BASE_URL=http://localhost:3001
+PORT=3000
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+```
+
+## Testing
+- Write tests for service functions and controllers.
+- Use tools like Jest or Mocha for unit/integration tests.
+
+## JSDoc/Inline Comments
+- All service and controller functions should have JSDoc comments for clarity and IDE support.
+
+## Contributing
+- Write tests for new service functions.
+- Use JSDoc for all exported functions.
+- Keep controllers thin and focused.
+
+---
+
 ## Features
 
 - Two-step user registration process
