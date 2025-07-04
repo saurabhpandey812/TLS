@@ -29,7 +29,6 @@ const userSchema = new mongoose.Schema({
   otpExpires: { type: Date },
   
   // Profile settings
-  isPrivate: { type: Boolean, default: false }, // Private profile requires follow approval
   bio: { type: String, maxlength: 500 },
   avatar: { type: String },
   coverPhoto: { type: String },

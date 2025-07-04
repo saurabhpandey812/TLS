@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const profileController = require('../controllers/profileController');
+const requireAuth = require('../middleware/requireAuth');
 
 /**
  * @swagger
@@ -184,7 +185,10 @@ const profileController = require('../controllers/profileController');
  *                   type: string
  *                   example: "Internal server error message"
  */
+router.get('/search', profileController.searchUsers);
+router.get('/me', requireAuth, profileController.getCurrentUserProfile);
 router.get('/:userId', profileController.getProfile);
 router.patch('/:userId', profileController.updateProfile);
+router.patch('/privacy/toggle', requireAuth, profileController.togglePrivacy);
 
 module.exports = router;

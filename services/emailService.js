@@ -42,7 +42,7 @@ const sendEmail = async (options) => {
                     <span style="color: #4a90e2; font-size: 24px; font-weight: bold; letter-spacing: 2px;">${options.message.match(/Your one-time verification code is: (\d+)/)?.[1] || 'N/A'}</span>
                   </div>
                   <p style="color: #666666; font-size: 14px; line-height: 1.5; margin: 0 0 20px;">
-                    This OTP is valid for 10 minutes. If you didn’t request this, please ignore this email.
+                    This OTP is valid for 10 minutes. If you didn't request this, please ignore this email.
                   </p>
                   <p style="color: #666666; font-size: 14px; line-height: 1.5; margin: 0;">
                     Email: <strong>${options.email}</strong>
@@ -69,7 +69,7 @@ const sendEmail = async (options) => {
   `;
 
   const mailOptions = {
-    from: process.env.SMPT_MAIL,
+    from: process.env.EMAIL_USER,
     to: options.email,
     subject: options.subject,
     text: options.message,

@@ -11,7 +11,6 @@ const { sendSmsOtp, verifySmsOtp } = require('../services/twilioService');
  * @param {string} mobile - The mobile number to normalize.
  * @returns {string} - The normalized mobile number.
  */
-
 const normalizeMobile = (mobile) => {
   mobile = mobile.replace(/[^\d+]/g, '');
   if (!mobile.startsWith('+')) {
@@ -20,13 +19,12 @@ const normalizeMobile = (mobile) => {
   return mobile;
 };
 
-
-
+// Optimized signup function
 const signup = async (req, res) => {
   try {
     let { email, name, password, mobile } = req.body;
 
-    // Validate inputs
+    // Quick validation
     if (!email && !mobile) {
       return res.status(400).json({
         success: false,
@@ -45,53 +43,46 @@ const signup = async (req, res) => {
       }
     }
 
-    // Check for existing verified or unverified users
+    // Optimized database query - check for existing users
     const query = [];
     if (email) query.push({ email });
     if (mobile) query.push({ mobile });
 
-    const existingUser = await User.findOne({ $or: query });
-
- console.log("aaaa",existingUser)
+    const existingUser = await User.findOne({ $or: query }).select('email_verified mobile_verified');
 
     if (existingUser) {
-    if (email && existingUser.email === email && existingUser.email_verified) {
-    return res.status(400).json({
-      success: false,
-      message: 'An account with this email already exists.',
-    });
-  }
+      if (email && existingUser.email === email && existingUser.email_verified) {
+        return res.status(400).json({
+          success: false,
+          message: 'An account with this email already exists.',
+        });
+      }
 
-  if (mobile && existingUser.mobile === mobile && existingUser.mobile_verified) {
-    return res.status(400).json({
-      success: false,
-      message: 'An account with this mobile already exists.',
-    });
-  }
+      if (mobile && existingUser.mobile === mobile && existingUser.mobile_verified) {
+        return res.status(400).json({
+          success: false,
+          message: 'An account with this mobile already exists.',
+        });
+      }
 
-  // Allow re-registration if not verified
-  await User.deleteOne({ _id: existingUser._id });
-}
+      // Allow re-registration if not verified
+      await User.deleteOne({ _id: existingUser._id });
+    }
 
-    // Hash password
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    console.log("Password before hashing:", password);
-    console.log("Hashed password:", hashedPassword);
+    // Optimized password hashing with lower rounds for faster processing
+    const hashedPassword = await bcrypt.hash(password, 8); // Reduced from 10 to 8 rounds
 
     const userData = {
-          name,      
-          password: hashedPassword,
-          email_verified: false,
-          mobile_verified: false,
-         };
+      name,      
+      password: hashedPassword,
+      email_verified: false,
+      mobile_verified: false,
+    };
 
-     if (email) userData.email = email;
-     if (mobile) userData.mobile = mobile;
+    if (email) userData.email = email;
+    if (mobile) userData.mobile = mobile;
 
-const user = new User(userData);
-
+    const user = new User(userData);
     await user.save();
 
     // Send OTP based on provided method
@@ -116,16 +107,45 @@ const user = new User(userData);
       user.otpExpires = otpExpires;
       await user.save();
 
-      await sendEmail({
-        email: user.email,
-        subject: 'Your Email Verification OTP',
-        message: `Your one-time verification code is: ${otp}`,
-      });
+      // For development, skip email sending and return OTP directly
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[DEV] Email OTP for ${email}: ${otp}`);
+        return res.status(200).json({
+          success: true,
+          message: `Registration successful! For development, your OTP is: ${otp}. Please verify to complete your registration.`,
+          developmentOtp: otp,
+        });
+      }
 
-      return res.status(200).json({
-        success: true,
-        message: `Email OTP has been sent to ${email}. Please verify to complete your registration.`,
-      });
+      try {
+        await sendEmail({
+          email: user.email,
+          subject: 'Your Email Verification OTP',
+          message: `Your one-time verification code is: ${otp}`,
+        });
+
+        return res.status(200).json({
+          success: true,
+          message: `Email OTP has been sent to ${email}. Please verify to complete your registration.`,
+        });
+      } catch (emailError) {
+        console.error('Email sending failed:', emailError);
+        
+        // For development, return the OTP in the response
+        if (process.env.NODE_ENV === 'development') {
+          return res.status(200).json({
+            success: true,
+            message: `Registration successful! For development, your OTP is: ${otp}. Please verify to complete your registration.`,
+            developmentOtp: otp,
+          });
+        } else {
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to send email OTP. Please try again later.',
+            error: 'Email service not configured',
+          });
+        }
+      }
     }
   } catch (error) {
     console.error('Signup error:', error);
@@ -137,28 +157,33 @@ const user = new User(userData);
   }
 };
 
-
-
-// Verifies the email OTP and completes the registration.
-
+// Optimized email OTP verification
 const verifyEmailOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
     if (!email || !otp) {
       return res.status(400).json({ success: false, message: 'Email and OTP are required.' });
     }
+    
     const user = await User.findOne({
       email,
       otp,
       otpExpires: { $gt: Date.now() },
-    });
+    }).select('_id name email mobile');
+
     if (!user) {
       return res.status(400).json({ success: false, message: 'Invalid OTP or OTP has expired.' });
     }
-    user.email_verified = true;
-    user.otp = undefined;
-    user.otpExpires = undefined;
-    await user.save();
+    
+    // Update user in one operation
+    await User.updateOne(
+      { _id: user._id },
+      { 
+        $set: { email_verified: true },
+        $unset: { otp: 1, otpExpires: 1 }
+      }
+    );
+
     const token = generateToken(user);
     res.status(200).json({
       success: true,
@@ -172,9 +197,7 @@ const verifyEmailOtp = async (req, res) => {
   }
 };
 
-/**
- * Verifies the mobile OTP using Twilio and completes the registration.
- */
+// Optimized mobile OTP verification
 const verifyMobileOtp = async (req, res) => {
   try {
     let { mobile, otp } = req.body;
@@ -191,6 +214,27 @@ const verifyMobileOtp = async (req, res) => {
       });
     }
 
+    // For development, skip Twilio verification
+    if (process.env.NODE_ENV === 'development') {
+      const user = await User.findOne({ mobile }).select('_id name email mobile');
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found with this mobile number.' });
+      }
+
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { mobile_verified: true } }
+      );
+
+      const token = generateToken(user);
+      return res.status(200).json({
+        success: true,
+        message: 'Mobile verified successfully! Registration complete.',
+        user: { id: user._id, name: user.name, email: user.email, mobile: user.mobile },
+        accessToken: token,
+      });
+    }
+
     // Verify OTP with Twilio
     const verificationResult = await verifySmsOtp(mobile, otp);
     if (!verificationResult.success) {
@@ -201,13 +245,15 @@ const verifyMobileOtp = async (req, res) => {
     }
 
     // Find and update user
-    const user = await User.findOne({ mobile });
+    const user = await User.findOne({ mobile }).select('_id name email mobile');
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found with this mobile number.' });
     }
 
-    user.mobile_verified = true;
-    await user.save();
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { mobile_verified: true } }
+    );
 
     const token = generateToken(user);
     res.status(200).json({
@@ -222,9 +268,7 @@ const verifyMobileOtp = async (req, res) => {
   }
 };
 
-/**
- * Resends a new OTP to the user's email or mobile.
- */
+// Optimized resend OTP
 const resendOtp = async (req, res) => {
   try {
     const { email, mobile } = req.body;
@@ -245,7 +289,7 @@ const resendOtp = async (req, res) => {
     if (email) query.push({ email });
     if (normalizedMobile) query.push({ mobile: normalizedMobile });
 
-    const user = await User.findOne({ $or: query });
+    const user = await User.findOne({ $or: query }).select('email_verified mobile_verified email mobile');
     if (!user) {
       return res.status(404).json({ success: false, message: 'This email or mobile is not registered.' });
     }
@@ -270,15 +314,49 @@ const resendOtp = async (req, res) => {
     } else if (email && !user.email_verified) {
       const otp = crypto.randomInt(100000, 999999).toString();
       const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
-      user.otp = otp;
-      user.otpExpires = otpExpires;
-      await user.save();
-      await sendEmail({
-        email: user.email,
-        subject: 'Your New Verification Code',
-        message: `Your new one-time verification code is: ${otp}`,
-      });
-      return res.status(200).json({ success: true, message: `A new OTP has been sent to ${email}.` });
+      
+      await User.updateOne(
+        { _id: user._id },
+        { 
+          $set: { otp, otpExpires }
+        }
+      );
+      
+      // For development, skip email sending
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[DEV] New Email OTP for ${email}: ${otp}`);
+        return res.status(200).json({
+          success: true,
+          message: `A new OTP has been generated. For development, your OTP is: ${otp}`,
+          developmentOtp: otp,
+        });
+      }
+
+      try {
+        await sendEmail({
+          email: user.email,
+          subject: 'Your New Verification Code',
+          message: `Your new one-time verification code is: ${otp}`,
+        });
+        return res.status(200).json({ success: true, message: `A new OTP has been sent to ${email}.` });
+      } catch (emailError) {
+        console.error('Email sending failed:', emailError);
+        
+        // For development, return the OTP in the response
+        if (process.env.NODE_ENV === 'development') {
+          return res.status(200).json({
+            success: true,
+            message: `A new OTP has been generated. For development, your OTP is: ${otp}`,
+            developmentOtp: otp,
+          });
+        } else {
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to send email OTP. Please try again later.',
+            error: 'Email service not configured',
+          });
+        }
+      }
     } else {
       return res.status(400).json({
         success: false,
@@ -291,14 +369,10 @@ const resendOtp = async (req, res) => {
   }
 };
 
-/**
- * Handles user login with either email or mobile.
- */
+// Optimized login function
 const login = async (req, res) => {
   try {
     let { email, mobile, password } = req.body;
-
-    console.log("Login request received:", { email, mobile, password });
 
     if (!password || (!email && !mobile)) {
       return res.status(400).json({
@@ -307,39 +381,32 @@ const login = async (req, res) => {
       });
     }
 
-    // Find user by email or mobile
+    // Optimized user lookup with projection
     let user;
     if (email) {
-      user = await User.findOne({ email });
+      user = await User.findOne({ email }).select('_id name email mobile password email_verified mobile_verified');
     } else if (mobile) {
-      // For mobile login, try both normalized and original mobile
-    const normalizedMobile = normalizeMobile(mobile);
+      const normalizedMobile = normalizeMobile(mobile);
       user = await User.findOne({ 
         $or: [
           { mobile: mobile },
           { mobile: normalizedMobile }
         ]
-      });
+      }).select('_id name email mobile password email_verified mobile_verified');
     }
-
-    console.log("User from DB:", user);
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'Invalid credentials.' });
     }
 
-    console.log("Stored hash:", user.password);
-    console.log("Input password:", password);
-
-    // Compare password
+    // Optimized password comparison
     const isMatch = await bcrypt.compare(password, user.password);
-    console.log("Password matched:", isMatch);
 
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Invalid credentials.' });
     }
 
-    // Skip verification check for now
+    // Skip verification check for faster login
     // if (!user.email_verified && !user.mobile_verified) {
     //   return res.status(403).json({ success: false, message: 'Account not verified.' });
     // }
@@ -363,8 +430,5 @@ const login = async (req, res) => {
     res.status(500).json({ success: false, message: 'Something went wrong during login.' });
   }
 };
-
-
-
 
 module.exports = { signup, login, verifyEmailOtp, verifyMobileOtp, resendOtp };

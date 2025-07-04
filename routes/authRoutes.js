@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { signup, login, verifyEmailOtp, verifyMobileOtp, resendOtp } = require('../controllers/authController');
+const requireAuth = require('../middleware/requireAuth');
 
 /**
  * @swagger
@@ -194,5 +195,9 @@ router.post('/resend-otp', resendOtp);
  *       401:
  *         description: Unauthorized
  */
+
+router.get('/validate-token', requireAuth, (req, res) => {
+  res.json({ success: true, user: req.user });
+});
 
 module.exports = router;
