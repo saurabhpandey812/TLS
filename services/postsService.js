@@ -261,6 +261,30 @@ async function deleteReplyService({ postId, commentId, replyId, userId }) {
   return { success: true, message: 'Reply deleted' };
 }
 
+async function resharePostService({ userId, postId, io }) {
+  // Find the original post
+  const originalPost = await Post.findById(postId);
+  if (!originalPost) {
+    return { success: false, message: 'Original post not found' };
+  }
+  // Create a new post as a reshare
+  const reshare = await Post.create({
+    user: userId,
+    author: userId,
+    content: originalPost.content,
+    images: originalPost.images,
+    video: originalPost.video,
+    isReshare: true,
+    originalPost: originalPost._id,
+  });
+  // Increment reshare count on the original post
+  originalPost.reshareCount = (originalPost.reshareCount || 0) + 1;
+  await originalPost.save();
+  // Optionally emit a socket event
+  if (io) io.emit('new_reshare', { postId: originalPost._id, reshareId: reshare._id, userId });
+  return { success: true, message: 'Post reshared', post: reshare };
+}
+
 module.exports = {
   likePostService,
   unlikePostService,
@@ -272,4 +296,5 @@ module.exports = {
   unlikeCommentService,
   addReplyService,
   deleteReplyService,
+  resharePostService,
 }; 

@@ -10,6 +10,10 @@ const postSchema = new mongoose.Schema({
   video: String,
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Users who liked this post
   likeCount: { type: Number, default: 0 },
+  // Reshare fields
+  reshareCount: { type: Number, default: 0 },
+  isReshare: { type: Boolean, default: false },
+  originalPost: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', default: null },
   comments: [
     {
       content: { type: String, required: true },

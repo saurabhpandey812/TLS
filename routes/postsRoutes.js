@@ -25,5 +25,7 @@ router.delete('/posts/:postId/comments/:commentId/unlike', requireAuth, postsCon
 // Comment replies
 router.post('/posts/:postId/comments/:commentId/replies', requireAuth, postsController.addReply);
 router.delete('/posts/:postId/comments/:commentId/replies/:replyId', requireAuth, postsController.deleteReply);
+// Reshare a post
+router.post('/posts/:id/reshare', requireAuth, postsController.resharePost);
 
 module.exports = router; 

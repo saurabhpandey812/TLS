@@ -3,7 +3,7 @@ const Post = require('../models/Post');
 const Notification = require('../models/Notification');
 const Profile = require('../models/Profile');
 const cloudinary = require('cloudinary').v2;
-const { likePostService, unlikePostService, getPostLikesService, createPostService, addCommentService, deleteCommentService, likeCommentService, unlikeCommentService, addReplyService, deleteReplyService } = require('../services/postsService');
+const { likePostService, unlikePostService, getPostLikesService, createPostService, addCommentService, deleteCommentService, likeCommentService, unlikeCommentService, addReplyService, deleteReplyService, resharePostService } = require('../services/postsService');
 
 cloudinary.config({
   cloud_name: 'rits7275',
@@ -249,5 +249,18 @@ exports.deleteReply = async (req, res) => {
     return res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ message: 'Error deleting reply', error: err.message });
+  }
+};
+
+// Reshare a post
+exports.resharePost = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const postId = req.params.id;
+    const result = await resharePostService({ userId, postId, io: req.app.get('io') });
+    if (!result.success) return res.status(400).json(result);
+    return res.status(201).json(result);
+  } catch (err) {
+    res.status(500).json({ message: 'Error resharing post', error: err.message });
   }
 }; 
