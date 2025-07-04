@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const sendEmail = require('../services/emailService');
 const { sendSmsOtp, verifySmsOtp } = require('../services/twilioService');
+const generateUsername = require('../utils/generateUsername');
 
 /**
  * Normalizes a mobile number to E.164 format.
@@ -26,15 +27,19 @@ const signup = async (req, res) => {
   try {
     let { email, name, password, mobile } = req.body;
 
-    // Validate inputs
     if (!email && !mobile) {
       return res.status(400).json({
         success: false,
         message: 'Either email or mobile number is required for registration.',
       });
     }
+    if (!name || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name and password are required for registration.',
+      });
+    }
 
-    // Normalize mobile number if provided
     if (mobile) {
       mobile = normalizeMobile(mobile);
       if (!/^\+\d{10,15}$/.test(mobile)) {
@@ -52,49 +57,43 @@ const signup = async (req, res) => {
 
     const existingUser = await User.findOne({ $or: query });
 
- console.log("aaaa",existingUser)
-
     if (existingUser) {
-    if (email && existingUser.email === email && existingUser.email_verified) {
-    return res.status(400).json({
-      success: false,
-      message: 'An account with this email already exists.',
-    });
-  }
-
-  if (mobile && existingUser.mobile === mobile && existingUser.mobile_verified) {
-    return res.status(400).json({
-      success: false,
-      message: 'An account with this mobile already exists.',
-    });
-  }
-
-  // Allow re-registration if not verified
-  await User.deleteOne({ _id: existingUser._id });
-}
+      if (email && existingUser.email === email && existingUser.email_verified) {
+        return res.status(400).json({
+          success: false,
+          message: 'An account with this email already exists.',
+        });
+      }
+      if (mobile && existingUser.mobile === mobile && existingUser.mobile_verified) {
+        return res.status(400).json({
+          success: false,
+          message: 'An account with this mobile already exists.',
+        });
+      }
+      // Allow re-registration if not verified
+      await User.deleteOne({ _id: existingUser._id });
+    }
 
     // Hash password
-
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    console.log("Password before hashing:", password);
-    console.log("Hashed password:", hashedPassword);
+    // Auto-generate unique username
+    const username = await generateUsername(name);
 
     const userData = {
-          name,      
-          password: hashedPassword,
-          email_verified: false,
-          mobile_verified: false,
-         };
+      name,
+      username,
+      password: hashedPassword,
+      email_verified: false,
+      mobile_verified: false,
+    };
+    if (email) userData.email = email;
+    if (mobile) userData.mobile = mobile;
 
-     if (email) userData.email = email;
-     if (mobile) userData.mobile = mobile;
-
-const user = new User(userData);
-
+    const user = new User(userData);
     await user.save();
 
-    // Send OTP based on provided method
+    // Send OTP
     if (mobile) {
       const smsResult = await sendSmsOtp(mobile);
       if (!smsResult.success) {
@@ -172,9 +171,9 @@ const verifyEmailOtp = async (req, res) => {
   }
 };
 
-/**
- * Verifies the mobile OTP using Twilio and completes the registration.
- */
+
+ // Verifies the mobile OTP using Twilio and completes the registration.
+ 
 const verifyMobileOtp = async (req, res) => {
   try {
     let { mobile, otp } = req.body;
@@ -182,7 +181,6 @@ const verifyMobileOtp = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Mobile number and OTP are required.' });
     }
 
-    // Normalize mobile number
     mobile = normalizeMobile(mobile);
     if (!/^\+\d{10,15}$/.test(mobile)) {
       return res.status(400).json({
@@ -222,9 +220,9 @@ const verifyMobileOtp = async (req, res) => {
   }
 };
 
-/**
- * Resends a new OTP to the user's email or mobile.
- */
+
+//Resends a new OTP to the user's email or mobile.
+
 const resendOtp = async (req, res) => {
   try {
     const { email, mobile } = req.body;
@@ -232,7 +230,6 @@ const resendOtp = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email or mobile number is required.' });
     }
 
-    // Normalize mobile number if provided
     let normalizedMobile = mobile ? normalizeMobile(mobile) : null;
     if (mobile && !/^\+\d{10,15}$/.test(normalizedMobile)) {
       return res.status(400).json({
@@ -314,9 +311,9 @@ const resendOtp = async (req, res) => {
   }
 };
 
-/**
- * Handles user login with either email or mobile.
- */
+
+// Handles user login with either email or mobile.
+
 const login = async (req, res) => {
   try {
     let { email, mobile, password } = req.body;
@@ -335,7 +332,6 @@ const login = async (req, res) => {
     if (email) {
       user = await User.findOne({ email });
     } else if (mobile) {
-      // For mobile login, try both normalized and original mobile
       const normalizedMobile = normalizeMobile(mobile);
       user = await User.findOne({ 
         $or: [
@@ -350,8 +346,6 @@ const login = async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'Invalid credentials.' });
     }
-
-    // Verification check for email or mobile
     if (email && !user.email_verified) {
       return res.status(403).json({ success: false, message: 'Email is not verified/registered.' });
     }
@@ -370,10 +364,6 @@ const login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials.' });
     }
 
-    // Skip verification check for now
-    // if (!user.email_verified && !user.mobile_verified) {
-    //   return res.status(403).json({ success: false, message: 'Account not verified.' });
-    // }
 
     const token = generateToken(user);
     return res.status(200).json({
@@ -395,9 +385,8 @@ const login = async (req, res) => {
   }
 };
 
-/**
- * Initiates forgot password by sending OTP to email or mobile.
- */
+// forgot password by sending OTP to email or mobile.
+
 const forgotPasswordRequest = async (req, res) => {
   try {
     const { email, mobile } = req.body;
@@ -408,7 +397,6 @@ const forgotPasswordRequest = async (req, res) => {
     if (email) {
       user = await User.findOne({ email });
       if (!user) return res.status(404).json({ success: false, message: 'User with this email not found.' });
-      // Generate OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       user.otp = otp;
       user.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 min
@@ -420,7 +408,6 @@ const forgotPasswordRequest = async (req, res) => {
       });
       return res.status(200).json({ success: true, message: 'OTP sent to email.' });
     } else {
-      // Normalize mobile
       let normMobile = normalizeMobile(mobile);
       user = await User.findOne({ mobile: normMobile });
       if (!user) return res.status(404).json({ success: false, message: 'User with this mobile not found.' });
@@ -438,9 +425,8 @@ const forgotPasswordRequest = async (req, res) => {
   }
 };
 
-/**
- * Verifies OTP for forgot password (email or mobile).
- */
+//Verifies OTP for forgot password (email or mobile).
+
 const forgotPasswordVerifyOtp = async (req, res) => {
   try {
     const { email, mobile, otp } = req.body;
@@ -475,9 +461,8 @@ const forgotPasswordVerifyOtp = async (req, res) => {
   }
 };
 
-/**
- * Resets password after OTP verification.
- */
+// Resets password after OTP verification.
+
 const forgotPasswordReset = async (req, res) => {
   try {
     const { email, mobile, newPassword } = req.body;
@@ -488,7 +473,6 @@ const forgotPasswordReset = async (req, res) => {
     if (email) {
       user = await User.findOne({ email });
       if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
-      // Optionally, check if OTP was verified recently (could use a flag or time window)
     } else {
       let normMobile = normalizeMobile(mobile);
       user = await User.findOne({ mobile: normMobile });

@@ -1,98 +1,100 @@
 const Profile = require('../models/Profile');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const { uploadToCloudinary } = require('../services/cloudinary');
+require('dotenv').config();
 
-exports.getProfile = async (req, res) => {
+// Register a new user (email or mobile required)
+const register = async (req, res) => {
   try {
-    const { userId } = req.params;
-    const profile = await Profile.findById(userId).select('_id name email email_verified mobile_verified');
-    
+    const { name, username, email, mobile, password } = req.body;
+    if (!name || !username || !password || (!email && !mobile)) {
+      return res.status(400).json({ success: false, message: 'Name, username, password, and either email or mobile are required.' });
+    }
+    const existing = await Profile.findOne({ $or: [email ? { email } : {}, mobile ? { mobile } : {}, { username }] });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Email, mobile, or username already exists.' });
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const profile = await Profile.create({ name, username, email, mobile, password: hashedPassword });
+    res.status(201).json({ success: true, profile: { _id: profile._id, name: profile.name, username: profile.username, email: profile.email, mobile: profile.mobile } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Registration failed', error: error.message });
+  }
+};
+
+// Login user (by email or mobile)
+const login = async (req, res) => {
+  try {
+    const { email, mobile, password } = req.body;
+    if ((!email && !mobile) || !password) {
+      return res.status(400).json({ success: false, message: 'Email or mobile and password required.' });
+    }
+    const profile = await Profile.findOne(email ? { email } : { mobile });
     if (!profile) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Profile not found' 
-      });
+      return res.status(400).json({ success: false, message: 'Invalid credentials.' });
     }
-
-    res.json({
-      success: true,
-      data: profile
-    });
-  } catch (err) {
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error', 
-      error: err.message 
-    });
+    const match = await bcrypt.compare(password, profile.password);
+    if (!match) {
+      return res.status(400).json({ success: false, message: 'Invalid credentials.' });
+    }
+    const token = jwt.sign({ userId: profile._id, name: profile.name, email: profile.email, mobile: profile.mobile }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    res.status(200).json({ success: true, accessToken: token, profile: { _id: profile._id, name: profile.name, username: profile.username, email: profile.email, mobile: profile.mobile } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Login failed', error: error.message });
   }
 };
 
-exports.updateProfile = async (req, res) => {
+// Get user profile by ID
+const getProfile = async (req, res) => {
   try {
-    const { userId } = req.params;
-    const { name, email } = req.body;
-
-    // Validate required fields
-    if (!name || !email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Name and email are required fields'
-      });
+    const { id } = req.params;
+    const profile = await Profile.findById(id).select('-password');
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
     }
-
-    // Validate email format
-    const emailRegex = /^\S+@\S+\.\S+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please enter a valid email address'
-      });
-    }
-
-    // Find and update the profile
-    const updatedProfile = await Profile.findByIdAndUpdate(
-      userId,
-      { 
-        name: name.trim(),
-        email: email.trim().toLowerCase()
-      },
-      { 
-        new: true, 
-        runValidators: true 
-      }
-    ).select('_id name email email_verified mobile_verified updated_at');
-
-    if (!updatedProfile) {
-      return res.status(404).json({
-        success: false,
-        message: 'Profile not found'
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: 'Profile updated successfully',
-      data: updatedProfile
-    });
-  } catch (err) {
-    console.error('Profile update error:', err);
-    
-    // Handle validation errors
-    if (err.name === 'ValidationError') {
-      const errors = {};
-      Object.keys(err.errors).forEach(key => {
-        errors[key] = err.errors[key].message;
-      });
-      
-      return res.status(400).json({
-        success: false,
-        message: 'Validation error',
-        errors
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: err.message
-    });
+    res.status(200).json({ success: true, profile });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch profile', error: error.message });
   }
 };
+
+// Update profile avatar
+const updateAvatar = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded.' });
+    }
+    const uploadRes = await uploadToCloudinary(req.file.path, 'image');
+    const profile = await Profile.findByIdAndUpdate(
+      userId,
+      { avatar: uploadRes.secure_url },
+      { new: true }
+    ).select('-password');
+    res.status(200).json({ success: true, profile });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to update avatar', error: error.message });
+  }
+};
+
+// Update profile fields
+const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const allowedFields = ['name', 'bio', 'website', 'gender', 'dob', 'isPrivate'];
+    const update = {};
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) update[field] = req.body[field];
+    }
+    if (Object.keys(update).length === 0) {
+      return res.status(400).json({ success: false, message: 'No valid fields to update.' });
+    }
+    const profile = await Profile.findByIdAndUpdate(userId, update, { new: true }).select('-password');
+    res.status(200).json({ success: true, profile });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to update profile', error: error.message });
+  }
+};
+
+module.exports = { register, login, getProfile, updateAvatar, updateProfile };
