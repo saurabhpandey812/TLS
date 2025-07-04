@@ -7,6 +7,7 @@ const profileRoutes = require('./routes/profileRoutes');
 const postRoutes = require('./routes/postRoutes');
 const followRoutes = require('./routes/followRoutes');
 const likeRoutes = require('./routes/likeRoutes');
+const commentRoutes = require('./routes/commentRoutes');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 
@@ -26,6 +27,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/follow', followRoutes);
 app.use('/api/like', likeRoutes);
+app.use('/api/comment', commentRoutes);
 
 app.get('/', (req, res) => {
   res.send("Server Connected Successfully");

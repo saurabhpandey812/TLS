@@ -34,4 +34,17 @@ const unlikePost = async (req, res) => {
   }
 };
 
-module.exports = { likePost, unlikePost }; 
+// Get all users who liked a post
+const getLikesForPost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const likes = await Like.find({ post: postId })
+      .populate('user', 'name username avatar')
+      .sort({ createdAt: -1 });
+    res.status(200).json({ success: true, likes: likes.map(l => l.user) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch likes', error: error.message });
+  }
+};
+
+module.exports = { likePost, unlikePost, getLikesForPost }; 

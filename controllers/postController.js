@@ -1,6 +1,8 @@
 const Post = require('../models/Post');
 const { uploadToCloudinary } = require('../services/cloudinary');
 const Profile = require('../models/Profile');
+const Like = require('../models/Like');
+const Comment = require('../models/Comment');
 
 // Create a new post with multiple media uploads
 const createPost = async (req, res) => {
@@ -32,26 +34,55 @@ const createPost = async (req, res) => {
   }
 };
 
-// Get all posts (newest first, with user info)
+// Get all posts (newest first, with user info, likes, comments)
 const getAllPosts = async (req, res) => {
   try {
     const posts = await Post.find()
       .populate('user', 'name username avatar')
       .sort({ createdAt: -1 });
-    res.status(200).json({ success: true, posts });
+    // For each post, get likes and comments
+    const postsWithExtras = await Promise.all(posts.map(async post => {
+      const likes = await Like.find({ post: post._id }).populate('user', 'name username avatar');
+      const comments = await Comment.find({ post: post._id }).populate('user', 'name username avatar');
+      return {
+        ...post.toObject(),
+        likes: likes.map(l => l.user),
+        comments: comments.map(c => ({
+          _id: c._id,
+          text: c.text,
+          user: c.user,
+          createdAt: c.createdAt
+        }))
+      };
+    }));
+    res.status(200).json({ success: true, posts: postsWithExtras });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch posts', error: error.message });
   }
 };
 
-// Get all posts by a specific user (newest first, with user info)
+// Get all posts by a specific user (newest first, with user info, likes, comments)
 const getPostsByUser = async (req, res) => {
   try {
     const { userId } = req.params;
     const posts = await Post.find({ user: userId })
       .populate('user', 'name username avatar')
       .sort({ createdAt: -1 });
-    res.status(200).json({ success: true, posts });
+    const postsWithExtras = await Promise.all(posts.map(async post => {
+      const likes = await Like.find({ post: post._id }).populate('user', 'name username avatar');
+      const comments = await Comment.find({ post: post._id }).populate('user', 'name username avatar');
+      return {
+        ...post.toObject(),
+        likes: likes.map(l => l.user),
+        comments: comments.map(c => ({
+          _id: c._id,
+          text: c.text,
+          user: c.user,
+          createdAt: c.createdAt
+        }))
+      };
+    }));
+    res.status(200).json({ success: true, posts: postsWithExtras });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch user posts', error: error.message });
   }
