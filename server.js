@@ -92,19 +92,22 @@ app.use(compression());
 // Enhanced CORS configuration for React Native apps
 const corsOptions = {
   origin: function (origin, callback) {
+    console.log('CORS request from origin:', origin); // Debug log
     // Allow requests with no origin (like mobile apps or Postman)
     if (!origin) return callback(null, true);
-    
     const allowedOrigins = [
       ...reactNativeConfig.reactNative.corsOrigins,
       process.env.FRONTEND_URL, // Your production frontend URL
       process.env.MOBILE_APP_URL // Your mobile app URL if different
     ].filter(Boolean);
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+    // Allow all origins in development for easier testing
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(new Error('Not allowed by CORS: ' + origin));
     }
   },
   credentials: true,
@@ -125,6 +128,19 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// CORS error handler for better debugging
+app.use((err, req, res, next) => {
+  if (err.message && err.message.startsWith('Not allowed by CORS')) {
+    return res.status(403).json({
+      success: false,
+      message: err.message,
+      code: 'CORS_ERROR',
+      origin: req.headers.origin || null
+    });
+  }
+  next(err);
+});
 
 // Mobile middleware - temporarily disabled for debugging
 // app.use(mobileHeaders);
