@@ -10,7 +10,7 @@ async function generateUsername(name) {
     username = `${base}${Math.floor(1000 + Math.random() * 9000)}`;
     exists = await Profile.findOne({ username });
     suffix++;
-    if (suffix > 10) break; // avoid infinite loop
+    if (suffix > 10) break;
   }
   return username;
 }
