@@ -31,10 +31,6 @@ const userSchema = new mongoose.Schema({
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
-// Remove any unique indexes on email and mobile
-userSchema.index({ email: 1 }, { sparse: true, unique: false });
-userSchema.index({ mobile: 1 }, { sparse: true, unique: false });
-
 // userSchema.pre('save', async function(next) {
 //   if (!this.isModified('password')) return next();
 //   try {

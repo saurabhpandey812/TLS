@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 
 const followerSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'Profile', required: true, index: true }, // the user being followed
-  follower: { type: mongoose.Schema.Types.ObjectId, ref: 'Profile', required: true, index: true }, // the user who follows
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'Profile', required: true }, // the user being followed
+  follower: { type: mongoose.Schema.Types.ObjectId, ref: 'Profile', required: true }, // the user who follows
   status: { type: String, enum: ['pending', 'accepted'], default: 'pending' },
   createdAt: { type: Date, default: Date.now }
 });

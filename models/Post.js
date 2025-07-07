@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const postSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'Profile', required: true, index: true },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'Profile', required: true },
   caption: { type: String },
   media: [
     {

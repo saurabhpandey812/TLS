@@ -37,8 +37,4 @@ const profileSchema = new mongoose.Schema({
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
-// Remove any unique indexes on email and mobile
-profileSchema.index({ email: 1 }, { sparse: false, unique: false });
-profileSchema.index({ mobile: 1 }, { sparse: false, unique: false });
-
 module.exports = mongoose.model('Profile', profileSchema);
