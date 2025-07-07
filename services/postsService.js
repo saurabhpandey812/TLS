@@ -2,21 +2,8 @@ const Like = require('../models/Like');
 const Post = require('../models/Post');
 const Notification = require('../models/Notification');
 const Profile = require('../models/Profile');
-const cloudinary = require('cloudinary').v2;
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'your-cloud-name',
-  api_key: process.env.CLOUDINARY_API_KEY || 'your-api-key',
-  api_secret: process.env.CLOUDINARY_API_SECRET || 'your-api-secret',
-});
-
-async function uploadToCloudinary(file, folder, resourceType = 'image') {
-  const uploadRes = await cloudinary.uploader.upload(file, {
-    folder,
-    resource_type: resourceType,
-  });
-  return uploadRes.secure_url;
-}
+const { uploadToCloudinary } = require('../utils/cloudinary');
+const { createNotification } = require('../utils/notificationHelpers');
 
 async function likePostService({ userId, postId, user, io }) {
   const existing = await Like.findOne({ user: userId, post: postId });
@@ -285,6 +272,61 @@ async function resharePostService({ userId, postId, io }) {
   return { success: true, message: 'Post reshared', post: reshare };
 }
 
+async function getAllPostsService({ userId, page = 1, limit = 20 }) {
+  const query = userId ? { author: userId } : {};
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const posts = await Post.find(query)
+    .populate('author', 'name avatar')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(parseInt(limit));
+  const total = await Post.countDocuments(query);
+  return {
+    success: true,
+    posts,
+    total,
+    page: parseInt(page),
+    limit: parseInt(limit),
+    hasMore: skip + posts.length < total
+  };
+}
+
+async function getPostByIdService(postId) {
+  const post = await Post.findById(postId).populate('author', 'name avatar');
+  if (!post) {
+    return { success: false, message: 'Post not found' };
+  }
+  // Build a response object matching the frontend's expected structure
+  const response = {
+    _id: post._id,
+    content: post.content,
+    images: post.images || [],
+    video: post.video || '',
+    author: post.author ? {
+      _id: post.author._id,
+      name: post.author.name,
+      avatar: post.author.avatar || ''
+    } : null,
+    likes: post.likes || [],
+    comments: [], // Add comments if you have a comments model/field
+    shares: post.shares || 0,
+    createdAt: post.createdAt,
+    updatedAt: post.updatedAt,
+  };
+  return { success: true, post: response };
+}
+
+async function getCommentsService({ postId, page = 1, limit = 20 }) {
+  const post = await Post.findById(postId).populate('comments.author', 'name avatar');
+  if (!post) return { success: false, message: 'Post not found' };
+  // Sort comments by createdAt ascending
+  const sortedComments = post.comments.sort((a, b) => a.createdAt - b.createdAt);
+  const start = (parseInt(page) - 1) * parseInt(limit);
+  const end = start + parseInt(limit);
+  const paginatedComments = sortedComments.slice(start, end);
+  return { success: true, comments: paginatedComments, total: post.comments.length };
+}
+
 module.exports = {
   likePostService,
   unlikePostService,
@@ -297,4 +339,7 @@ module.exports = {
   addReplyService,
   deleteReplyService,
   resharePostService,
+  getAllPostsService,
+  getPostByIdService,
+  getCommentsService,
 }; 

@@ -1,26 +1,6 @@
 const Profile = require('../models/Profile');
 const mongoose = require('mongoose');
-
-/**
- * Uploads a file to Cloudinary and returns the secure URL.
- * @param {string} dataUrl - The base64 data URL of the file.
- * @param {string} folder - The Cloudinary folder.
- * @param {string} resourceType - The resource type (image/raw).
- * @returns {Promise<string>} - The secure URL.
- */
-async function uploadToCloudinary(dataUrl, folder, resourceType = 'image') {
-  const cloudinary = require('cloudinary').v2;
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'your-cloud-name',
-    api_key: process.env.CLOUDINARY_API_KEY || 'your-api-key',
-    api_secret: process.env.CLOUDINARY_API_SECRET || 'your-api-secret',
-  });
-  const uploadRes = await cloudinary.uploader.upload(dataUrl, {
-    folder,
-    resource_type: resourceType,
-  });
-  return uploadRes.secure_url;
-}
+const { uploadToCloudinary } = require('../utils/cloudinary');
 
 /**
  * Validates profile fields.
@@ -45,12 +25,15 @@ async function updateProfileService(userId, fields) {
   const validationError = validateProfileFields(fields);
   if (validationError) return { success: false, ...validationError };
 
-  let avatarUrl, verificationDocUrl;
+  let avatarUrl, verificationDocUrl, coverPhotoUrl;
   if (fields.avatar && fields.avatar.startsWith('data:image')) {
     avatarUrl = await uploadToCloudinary(fields.avatar, 'tls-avatars', 'image');
   }
   if (fields.verificationDoc && fields.verificationDoc.startsWith('data:')) {
     verificationDocUrl = await uploadToCloudinary(fields.verificationDoc, 'tls-verification', 'raw');
+  }
+  if (fields.coverPhoto && fields.coverPhoto.startsWith('data:image')) {
+    coverPhotoUrl = await uploadToCloudinary(fields.coverPhoto, 'tls-cover-photo', 'image');
   }
 
   const updateObj = {};
@@ -71,12 +54,14 @@ async function updateProfileService(userId, fields) {
   if (Array.isArray(fields.languages)) updateObj.languages = fields.languages;
   if (typeof fields.availability === 'string') updateObj.availability = fields.availability;
   if (typeof fields.linkedin === 'string') updateObj.linkedin = fields.linkedin;
+  if (coverPhotoUrl) updateObj.coverPhoto = coverPhotoUrl;
+  else if (typeof fields.coverPhoto === 'string' && !fields.coverPhoto.startsWith('data:')) updateObj.coverPhoto = fields.coverPhoto;
 
   const updatedProfile = await Profile.findByIdAndUpdate(
     userId,
     updateObj,
     { new: true, runValidators: true }
-  ).select('_id name email email_verified mobile_verified updated_at avatar bio location website professionalTitle practiceAreas yearsOfExperience barNumber firm verificationDoc officeAddress languages availability linkedin');
+  ).select('_id name email email_verified mobile_verified updated_at avatar bio location website professionalTitle practiceAreas yearsOfExperience barNumber firm verificationDoc officeAddress languages availability linkedin coverPhoto');
 
   if (!updatedProfile) {
     return { success: false, message: 'Profile not found' };

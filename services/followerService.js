@@ -2,6 +2,8 @@ const Follower = require('../models/Follower');
 const Profile = require('../models/Profile');
 const Notification = require('../models/Notification');
 const mongoose = require('mongoose');
+const { createNotification } = require('../utils/notificationHelpers');
+const { findProfileById, findProfileByEmail } = require('../utils/userHelpers');
 
 async function sendFollowRequestService({ userId, targetUserId, user, io }) {
   if (userId === targetUserId) {

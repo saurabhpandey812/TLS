@@ -32,6 +32,7 @@ const userSchema = new mongoose.Schema({
   bio: { type: String, maxlength: 500 },
   avatar: { type: String },
   coverPhoto: { type: String },
+  backgroundImage: { type: String },
   
   // Follower/Following counts (cached for performance)
   followersCount: { type: Number, default: 0 },
