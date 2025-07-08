@@ -89,43 +89,8 @@ app.use(helmet());
 // Compression middleware for mobile optimization
 app.use(compression());
 
-// Enhanced CORS configuration for React Native apps
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or Postman)
-    if (!origin) return callback(null, true);
-    
-    const allowedOrigins = [
-      ...reactNativeConfig.reactNative.corsOrigins,
-      process.env.FRONTEND_URL,
-      process.env.MOBILE_APP_URL,
-      'https://tls-maf3.onrender.com' // Added Render domain for CORS
-    ].filter(Boolean);
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: [
-    'Origin',
-    'X-Requested-With',
-    'Content-Type',
-    'Accept',
-    'Authorization',
-    'X-API-Key',
-    'X-Device-ID',
-    'X-App-Version',
-    'X-Platform', // For identifying iOS/Android
-    'X-React-Native' // React Native specific header
-  ],
-  exposedHeaders: ['X-Total-Count', 'X-Page-Count', 'X-API-Version', 'X-Response-Time']
-};
-
-app.use(cors(corsOptions));
+// Remove custom corsOptions and use default CORS for all origins
+app.use(cors());
 
 // Mobile middleware - temporarily disabled for debugging
 // app.use(mobileHeaders);
