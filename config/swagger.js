@@ -9,7 +9,7 @@ const options = {
       description: 'API documentation for user authentication and profile management',
     },
     servers: [
-      { url: 'http://localhost:3001', description: 'HTTP (local)' },
+      { url: 'http://localhost:8000', description: 'HTTP (local)' },
       { url: 'https://tls-maf3.onrender.com/', description: 'HTTPS (server)' }
     ],
     tags: [

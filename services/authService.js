@@ -12,10 +12,8 @@ const generateToken = (user) => {
     name: user?.name,
     email: user?.email,
   };
-
   const secret = process.env.JWT_SECRET;
   const expiresIn = process.env.JWT_EXPIRES_IN || '1d';
-
   const token = jwt.sign(payload, secret, { expiresIn });
   return token;
 };

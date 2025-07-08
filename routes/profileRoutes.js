@@ -1,91 +1,129 @@
 const express = require('express');
 const router = express.Router();
-const profileController = require('../controllers/profileController');
+const multer = require('multer');
+const { register, login, getProfile, updateAvatar, updateProfile } = require('../controllers/profileController');
 const requireAuth = require('../middleware/requireAuth');
+const profileController = require('../controllers/profileController');
+const upload = multer({ dest: 'uploads/' });
 
 /**
  * @swagger
- * /api/profile/{userId}:
- *   get:
- *     summary: Get user profile data
- *     description: Retrieve user profile information including id, name, email, and verification status
+ * /api/profile/register:
+ *   post:
+ *     summary: Register a new user
  *     tags: [Profile]
- *     parameters:
- *       - in: path
- *         name: userId
- *         required: true
- *         schema:
- *           type: string
- *         description: The user ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - username
+ *               - email
+ *               - password
+ *             properties:
+ *               name:
+ *                 type: string
+ *               username:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: User registered
+ *       400:
+ *         description: Bad request
+ */
+router.post('/register', register);
+
+/**
+ * @swagger
+ * /api/profile/login:
+ *   post:
+ *     summary: Login user
+ *     tags: [Profile]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
  *     responses:
  *       200:
- *         description: Success
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     _id:
- *                       type: string
- *                       example: "507f1f77bcf86cd799439011"
- *                     name:
- *                       type: string
- *                       example: "John Doe"
- *                     email:
- *                       type: string
- *                       example: "john@example.com"
- *                     email_verified:
- *                       type: boolean
- *                       example: true
- *                     mobile_verified:
- *                       type: boolean
- *                       example: false
- *       404:
- *         description: Profile not found
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: "Profile not found"
- *       500:
- *         description: Server error
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: "Server error"
- *                 error:
- *                   type: string
- *                   example: "Internal server error message"
- *   patch:
- *     summary: Update user profile (name and email)
- *     description: Update user's name and email fields using PATCH method
+ *         description: Login successful
+ *       400:
+ *         description: Invalid credentials
+ */
+router.post('/login', login);
+
+/**
+ * @swagger
+ * /api/profile/{id}:
+ *   get:
+ *     summary: Get user profile by ID
  *     tags: [Profile]
  *     parameters:
  *       - in: path
- *         name: userId
+ *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: The user ID
+ *     responses:
+ *       200:
+ *         description: User profile
+ *       404:
+ *         description: User not found
+ */
+router.get('/:id', getProfile);
+
+/**
+ * @swagger
+ * /api/profile/avatar:
+ *   patch:
+ *     summary: Update user profile picture (avatar)
+ *     tags: [Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Avatar updated successfully
+ *       400:
+ *         description: No file uploaded
+ *       500:
+ *         description: Server error
+ */
+router.patch('/avatar', requireAuth, upload.single('avatar'), updateAvatar);
+
+/**
+ * @swagger
+ * /api/profile/update:
+ *   patch:
+ *     summary: Update user profile fields
+ *     tags: [Profile]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -95,96 +133,26 @@ const requireAuth = require('../middleware/requireAuth');
  *             properties:
  *               name:
  *                 type: string
- *                 description: User's full name
- *                 example: "John Doe"
- *               email:
+ *               bio:
  *                 type: string
- *                 format: email
- *                 description: User's email address
- *                 example: "john.doe@example.com"
- *             required:
- *               - name
- *               - email
+ *               website:
+ *                 type: string
+ *               gender:
+ *                 type: string
+ *               dob:
+ *                 type: string
+ *                 format: date
+ *               isPrivate:
+ *                 type: boolean
  *     responses:
  *       200:
  *         description: Profile updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Profile updated successfully"
- *                 data:
- *                   type: object
- *                   properties:
- *                     _id:
- *                       type: string
- *                       example: "507f1f77bcf86cd799439011"
- *                     name:
- *                       type: string
- *                       example: "John Doe"
- *                     email:
- *                       type: string
- *                       example: "john.doe@example.com"
- *                     email_verified:
- *                       type: boolean
- *                       example: false
- *                     updated_at:
- *                       type: string
- *                       format: date-time
- *                       example: "2024-01-15T10:30:00.000Z"
  *       400:
- *         description: Validation error
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: "Validation error"
- *                 errors:
- *                   type: object
- *                   example:
- *                     email: "Please enter a valid email address"
- *       404:
- *         description: Profile not found
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: "Profile not found"
+ *         description: No valid fields to update
  *       500:
  *         description: Server error
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: "Server error"
- *                 error:
- *                   type: string
- *                   example: "Internal server error message"
  */
+router.patch('/update', requireAuth, updateProfile);
 router.get('/search', profileController.searchUsers);
 router.get('/me', requireAuth, profileController.getCurrentUserProfile);
 router.get('/:userId', profileController.getProfile);
