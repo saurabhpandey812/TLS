@@ -2,29 +2,10 @@ const Profile = require('../models/Profile');
 const mongoose = require('mongoose');
 const { uploadToCloudinary } = require('../utils/cloudinary');
 
-/**
- * Validates profile fields.
- * @param {Object} data
- * @returns {Object|null} - Error object or null if valid.
- */
-function validateProfileFields(data) {
-  if (!data.name || !data.email) {
-    return { message: 'Name and email are required fields' };
-  }
-  const emailRegex = /^\S+@\S+\.\S+$/;
-  if (!emailRegex.test(data.email)) {
-    return { message: 'Please enter a valid email address' };
-  }
-  return null;
-}
 
-/**
- * Updates a profile with provided fields and handles uploads.
- */
+ // Update a profile with provided fields and handle uploads.
+
 async function updateProfileService(userId, fields) {
-  const validationError = validateProfileFields(fields);
-  if (validationError) return { success: false, ...validationError };
-
   let avatarUrl, verificationDocUrl, coverPhotoUrl;
   if (fields.avatar && fields.avatar.startsWith('data:image')) {
     avatarUrl = await uploadToCloudinary(fields.avatar, 'tls-avatars', 'image');
@@ -35,43 +16,23 @@ async function updateProfileService(userId, fields) {
   if (fields.coverPhoto && fields.coverPhoto.startsWith('data:image')) {
     coverPhotoUrl = await uploadToCloudinary(fields.coverPhoto, 'tls-cover-photo', 'image');
   }
-
-  const updateObj = {};
-  if (typeof fields.name === 'string') updateObj.name = fields.name.trim();
-  if (typeof fields.email === 'string') updateObj.email = fields.email.trim().toLowerCase();
-  if (typeof fields.bio === 'string') updateObj.bio = fields.bio;
-  if (typeof fields.location === 'string') updateObj.location = fields.location;
-  if (typeof fields.website === 'string') updateObj.website = fields.website;
+  const updateObj = { ...fields };
   if (avatarUrl) updateObj.avatar = avatarUrl;
-  if (typeof fields.professionalTitle === 'string') updateObj.professionalTitle = fields.professionalTitle;
-  if (Array.isArray(fields.practiceAreas)) updateObj.practiceAreas = fields.practiceAreas;
-  if (fields.yearsOfExperience !== undefined) updateObj.yearsOfExperience = fields.yearsOfExperience;
-  if (typeof fields.barNumber === 'string') updateObj.barNumber = fields.barNumber;
-  if (typeof fields.firm === 'string') updateObj.firm = fields.firm;
   if (verificationDocUrl) updateObj.verificationDoc = verificationDocUrl;
-  else if (typeof fields.verificationDoc === 'string' && !fields.verificationDoc.startsWith('data:')) updateObj.verificationDoc = fields.verificationDoc;
-  if (typeof fields.officeAddress === 'string') updateObj.officeAddress = fields.officeAddress;
-  if (Array.isArray(fields.languages)) updateObj.languages = fields.languages;
-  if (typeof fields.availability === 'string') updateObj.availability = fields.availability;
-  if (typeof fields.linkedin === 'string') updateObj.linkedin = fields.linkedin;
   if (coverPhotoUrl) updateObj.coverPhoto = coverPhotoUrl;
-  else if (typeof fields.coverPhoto === 'string' && !fields.coverPhoto.startsWith('data:')) updateObj.coverPhoto = fields.coverPhoto;
-
   const updatedProfile = await Profile.findByIdAndUpdate(
     userId,
     updateObj,
     { new: true, runValidators: true }
-  ).select('_id name email email_verified mobile_verified updated_at avatar bio location website professionalTitle practiceAreas yearsOfExperience barNumber firm verificationDoc officeAddress languages availability linkedin coverPhoto');
-
+  ).select('-password -otp -otpExpires');
   if (!updatedProfile) {
     return { success: false, message: 'Profile not found' };
   }
   return { success: true, message: 'Profile updated successfully', data: updatedProfile };
 }
 
-/**
- * Searches users by id, email, name, or mobile.
- */
+// Search users by id, email, name, or mobile.
+
 async function searchUsersService(query) {
   let users;
   if (!query) {
@@ -91,9 +52,8 @@ async function searchUsersService(query) {
   return { success: true, users };
 }
 
-/**
- * Gets a profile by userId.
- */
+// Get a profile by userId.
+
 async function getProfileService(userId) {
   const profile = await Profile.findById(userId).select('-password -otp -otpExpires');
   if (!profile) {
@@ -102,9 +62,8 @@ async function getProfileService(userId) {
   return { success: true, data: profile };
 }
 
-/**
- * Gets the current user's profile by userId or email.
- */
+// Get the current user's profile by userId or email.
+
 async function getCurrentUserProfileService({ userId, userEmail }) {
   let profile = null;
   let user = null;
@@ -128,9 +87,8 @@ async function getCurrentUserProfileService({ userId, userEmail }) {
   return { success: true, data: profileObj };
 }
 
-/**
- * Toggles the privacy setting of a profile.
- */
+// Toggle the privacy setting of a profile.
+
 async function togglePrivacyService(userId) {
   const profile = await Profile.findById(userId);
   if (!profile) {

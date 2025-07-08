@@ -6,6 +6,7 @@ const bcrypt = require('bcrypt');
 const sendEmail = require('../services/emailService');
 const { sendSmsOtp, verifySmsOtp } = require('../services/twilioService');
 const generateUsername = require('../utils/generateUsername');
+const normalizeMobile = require('../utils/normalizeMobile');
 
 // Optimized signup function
 const signup = async (req, res) => {

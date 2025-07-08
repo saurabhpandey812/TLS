@@ -11,14 +11,14 @@ const http = require('http');
 const socketIo = require('socket.io');
 
 // Local imports
-const connectDB = require('./config/db');
+const { connectDB } = require('./config/db');
 const swaggerSpec = require('./config/swagger');
 const authRoutes = require('./routes/authRoutes');
 const profileRoutes = require('./routes/profileRoutes');
-const followerRoutes = require('./routes/followerRoutes');
-const postRoutes = require('./routes/postRoutes');
+const followRoutes = require('./routes/followRoutes');
 const postsRoutes = require('./routes/postsRoutes');
 const notificationsRoutes = require('./routes/notificationsRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -101,11 +101,10 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/profile', profileRoutes);
-app.use('/api/follow', followerRoutes);
+app.use('/api/follow', followRoutes);
 app.use('/api/posts', postsRoutes);
 app.use('/api/notifications', notificationsRoutes);
-app.use('/api/post', postRoutes); // If you have both postRoutes and postsRoutes
-app.use('/api', require('./routes/chatRoutes'));
+app.use('/api/chat', chatRoutes);
 
 // Swagger docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

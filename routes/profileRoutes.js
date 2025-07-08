@@ -153,15 +153,5 @@ router.patch('/avatar', requireAuth, upload.single('avatar'), updateAvatar);
  *         description: Server error
  */
 router.patch('/update', requireAuth, updateProfile);
-router.get('/search', profileController.searchUsers);
-router.get('/me', requireAuth, profileController.getCurrentUserProfile);
-router.get('/:userId', profileController.getProfile);
-router.patch('/:userId', profileController.updateProfile);
-router.patch('/privacy/toggle', requireAuth, profileController.togglePrivacy);
-router.post('/users/public-key', profileController.setPublicKey);
-router.get('/users/:userId/public-key', profileController.getPublicKey);
-router.post('/block', requireAuth, profileController.blockUser);
-router.post('/unblock', requireAuth, profileController.unblockUser);
-router.get('/users/:userId/connections', profileController.getConnections);
 
 module.exports = router;

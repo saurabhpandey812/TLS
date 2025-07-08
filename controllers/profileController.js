@@ -8,10 +8,22 @@ const jwt = require('jsonwebtoken');
 const { uploadToCloudinary } = require('../services/cloudinary');
 require('dotenv').config();
 
-// Register a new user (email or mobile required)
+// Helper to format profile response (never include password)
+function formatProfile(profile) {
+  if (!profile) return null;
+  const obj = profile.toObject ? profile.toObject() : profile;
+  delete obj.password;
+  return obj;
+}
+
+// Register a new user
 const register = async (req, res) => {
   try {
-    const { name, username, email, mobile, password } = req.body;
+    const {
+      name, username, email, mobile, password, avatar, bio, website, gender, dob, isPrivate, location,
+      professionalTitle, practiceAreas, yearsOfExperience, barNumber, firm, verificationDoc, officeAddress,
+      languages, availability, linkedin, coverPhoto
+    } = req.body;
     if (!name || !username || !password || (!email && !mobile)) {
       return res.status(400).json({ success: false, message: 'Name, username, password, and either email or mobile are required.' });
     }
@@ -20,8 +32,12 @@ const register = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email, mobile, or username already exists.' });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
-    const profile = await Profile.create({ name, username, email, mobile, password: hashedPassword });
-    res.status(201).json({ success: true, profile: { _id: profile._id, name: profile.name, username: profile.username, email: profile.email, mobile: profile.mobile } });
+    const profile = await Profile.create({
+      name, username, email, mobile, password: hashedPassword, avatar, bio, website, gender, dob, isPrivate, location,
+      professionalTitle, practiceAreas, yearsOfExperience, barNumber, firm, verificationDoc, officeAddress,
+      languages, availability, linkedin, coverPhoto
+    });
+    res.status(201).json({ success: true, profile: formatProfile(profile) });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Registration failed', error: error.message });
   }
@@ -43,7 +59,7 @@ const login = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid credentials.' });
     }
     const token = jwt.sign({ userId: profile._id, name: profile.name, email: profile.email, mobile: profile.mobile }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.status(200).json({ success: true, accessToken: token, profile: { _id: profile._id, name: profile.name, username: profile.username, email: profile.email, mobile: profile.mobile } });
+    res.status(200).json({ success: true, accessToken: token, profile: formatProfile(profile) });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Login failed', error: error.message });
   }
@@ -57,7 +73,7 @@ const getProfile = async (req, res) => {
     if (!profile) {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
-    res.status(200).json({ success: true, profile });
+    res.status(200).json({ success: true, profile: formatProfile(profile) });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch profile', error: error.message });
   }
@@ -76,7 +92,7 @@ const updateAvatar = async (req, res) => {
       { avatar: uploadRes.secure_url },
       { new: true }
     ).select('-password');
-    res.status(200).json({ success: true, profile });
+    res.status(200).json({ success: true, profile: formatProfile(profile) });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to update avatar', error: error.message });
   }
@@ -86,7 +102,11 @@ const updateAvatar = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const userId = req.user._id;
-    const allowedFields = ['name', 'bio', 'website', 'gender', 'dob', 'isPrivate'];
+    const allowedFields = [
+      'name', 'bio', 'website', 'gender', 'dob', 'isPrivate', 'location',
+      'professionalTitle', 'practiceAreas', 'yearsOfExperience', 'barNumber', 'firm', 'verificationDoc',
+      'officeAddress', 'languages', 'availability', 'linkedin', 'coverPhoto'
+    ];
     const update = {};
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) update[field] = req.body[field];
@@ -95,7 +115,7 @@ const updateProfile = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No valid fields to update.' });
     }
     const profile = await Profile.findByIdAndUpdate(userId, update, { new: true }).select('-password');
-    res.status(200).json({ success: true, profile });
+    res.status(200).json({ success: true, profile: formatProfile(profile) });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to update profile', error: error.message });
   }
