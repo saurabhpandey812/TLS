@@ -1,6 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const { signup, login, verifyEmailOtp, verifyMobileOtp, resendOtp } = require('../controllers/authController');
+const {
+  signup,
+  login,
+  verifyEmailOtp,
+  verifyMobileOtp,
+  resendOtp,
+  forgotPasswordRequest,
+  forgotPasswordVerifyOtp,
+  forgotPasswordReset,
+  logout
+} = require('../controllers/authController');
+const requireAuth = require('../middleware/requireAuth');
 
 /**
  * @swagger
@@ -207,7 +218,7 @@ router.post('/resend-otp', resendOtp);
  *       404:
  *         description: User not found
  */
-router.post('/forgot-password/request', require('../controllers/authController').forgotPasswordRequest);
+router.post('/forgot-password/request', forgotPasswordRequest);
 
 /**
  * @swagger
@@ -237,7 +248,7 @@ router.post('/forgot-password/request', require('../controllers/authController')
  *       400:
  *         description: Invalid or expired OTP
  */
-router.post('/forgot-password/verify-otp', require('../controllers/authController').forgotPasswordVerifyOtp);
+router.post('/forgot-password/verify-otp', forgotPasswordVerifyOtp);
 
 /**
  * @swagger
@@ -270,7 +281,7 @@ router.post('/forgot-password/verify-otp', require('../controllers/authControlle
  *       404:
  *         description: User not found
  */
-router.post('/forgot-password/reset', require('../controllers/authController').forgotPasswordReset);
+router.post('/forgot-password/reset', forgotPasswordReset);
 
 /**
  * @swagger
@@ -286,5 +297,9 @@ router.post('/forgot-password/reset', require('../controllers/authController').f
  *       401:
  *         description: Unauthorized
  */
+
+router.get('/validate-token', requireAuth, (req, res) => {
+  res.json({ success: true, user: req.user });
+});
 
 module.exports = router;

@@ -3,44 +3,40 @@ const bcrypt = require('bcrypt');
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  email: { 
-    type: String, 
-    // required: false, 
-    // unique: false, 
-    // sparse: true,
+  email: {
+    type: String,
     trim: true,
     lowercase: true,
     match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email address'],
   },
-  
-  mobile: { 
+  mobile: {
     type: String,
     required: false,
-    // unique: false,
-    // sparse: true,
     trim: true,
     match: [/^\+\d{10,15}$/, 'Please enter a valid mobile number in E.164 format (e.g., +1234567890)'],
   },
-  
   password: { type: String, required: true },
   email_verified: { type: Boolean, default: false },
   mobile_verified: { type: Boolean, default: false },
   otp: { type: String },
   otpExpires: { type: Date },
+  bio: { type: String, maxlength: 500 },
+  avatar: { type: String },
+  coverPhoto: { type: String },
+  backgroundImage: { type: String },
+  followersCount: { type: Number, default: 0 },
+  followingCount: { type: Number, default: 0 },
+  pushNotifications: { type: Boolean, default: true },
+  emailNotifications: { type: Boolean, default: true },
+  isActive: { type: Boolean, default: true },
+  lastSeen: { type: Date, default: Date.now },
+  blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  publicKey: { type: String, required: false },
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
-// userSchema.pre('save', async function(next) {
-//   if (!this.isModified('password')) return next();
-//   try {
-//     const salt = await bcrypt.genSalt(10);
-//     this.password = await bcrypt.hash(this.password, salt);
-//     next();
-//   } catch (err) {
-//     next(err);
-//   }
-// });
-
+userSchema.index({ email: 1 }, { sparse: true, unique: false });
+userSchema.index({ mobile: 1 }, { sparse: true, unique: false });
 
 module.exports = mongoose.model('User', userSchema);

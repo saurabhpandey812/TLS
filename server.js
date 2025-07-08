@@ -1,30 +1,34 @@
 require('dotenv').config();
+
+// Core & third-party imports
 const express = require('express');
 const cors = require('cors');
-const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const compression = require('compression');
-const connectDB = require('./config/db');
+const rateLimit = require('express-rate-limit');
+const swaggerUi = require('swagger-ui-express');
+const http = require('http');
+const socketIo = require('socket.io');
+
+// Local imports
+const { connectDB } = require('./config/db');
+const swaggerSpec = require('./config/swagger');
 const authRoutes = require('./routes/authRoutes');
 const profileRoutes = require('./routes/profileRoutes');
-const postRoutes = require('./routes/postRoutes');
 const followRoutes = require('./routes/followRoutes');
-const likeRoutes = require('./routes/likeRoutes');
-const commentRoutes = require('./routes/commentRoutes');
-const swaggerUi = require('swagger-ui-express');
-const swaggerSpec = require('./config/swagger');
+const postsRoutes = require('./routes/postsRoutes');
+const notificationsRoutes = require('./routes/notificationsRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 
-// Mobile middleware
-const {
-  mobileHeaders,
-  mobileErrorHandler,
-  mobileResponseOptimizer,
-  mobileFileUpload,
-  mobileAnalytics,
-  mobileNetworkOptimizer
-} = require('./middleware/mobileMiddleware');
+const app = express();
+const PORT = process.env.PORT || 8000;
 
-// React Native configuration - simplified for debugging
+// Create HTTP server and attach socket.io
+const server = http.createServer(app);
+const io = socketIo(server, { cors: { origin: '*' } });
+app.set('io', io);
+
+// React Native config (inline for now)
 const reactNativeConfig = {
   reactNative: {
     app: {
@@ -32,41 +36,16 @@ const reactNativeConfig = {
       version: '1.0.0',
       platforms: ['ios', 'android'],
     },
-    corsOrigins: [
-      'http://localhost:8081',
-      'http://localhost:3000',
-      'http://10.0.2.2:8000',
-      'http://10.0.3.2:8000',
-      'http://localhost:8000',
-      'http://192.168.1.100:8000',
-    ],
-    upload: {
-      maxFileSize: 5 * 1024 * 1024,
-    },
-    auth: {
-      maxDevices: 2,
-    },
-    performance: {
-      cacheDuration: 600,
-    },
-    offline: {
-      enabled: true,
-    },
-    pushNotifications: {
-      enabled: true,
-    }
+    upload: { maxFileSize: 5 * 1024 * 1024 },
+    auth: { maxDevices: 2 },
+    performance: { cacheDuration: 600 },
+    offline: { enabled: true },
+    pushNotifications: { enabled: true }
   },
   endpoints: {
-    auth: {
-      login: '/api/auth/login',
-      register: '/api/auth/register',
-    },
-    profile: {
-      get: '/api/profile',
-    },
-    posts: {
-      list: '/api/posts',
-    }
+    auth: { login: '/api/auth/login', register: '/api/auth/register' },
+    profile: { get: '/api/profile' },
+    posts: { list: '/api/posts' }
   },
   errorCodes: {
     NETWORK_ERROR: 'NETWORK_ERROR',
@@ -77,61 +56,34 @@ const reactNativeConfig = {
   }
 };
 
-const app = express();
-const PORT = process.env.PORT || 8000;
-
 // Connect to MongoDB
 connectDB();
 
-// Security middleware
+// Security & performance middleware
 app.use(helmet());
-
-// Compression middleware for mobile optimization
 app.use(compression());
+app.use(cors()); // Allow all origins
+app.use(express.json({ limit: reactNativeConfig.reactNative.upload.maxFileSize }));
+app.use(express.urlencoded({ extended: true, limit: reactNativeConfig.reactNative.upload.maxFileSize }));
 
-// Remove custom corsOptions and use default CORS for all origins
-app.use(cors());
-
-// CORS error handler for better debugging
-app.use((err, req, res, next) => {
-  if (err.message && err.message.startsWith('Not allowed by CORS')) {
-    return res.status(403).json({
-      success: false,
-      message: err.message,
-      code: 'CORS_ERROR',
-      origin: req.headers.origin || null
-    });
-  }
-  next(err);
-});
-
-// Mobile middleware - temporarily disabled for debugging
-// app.use(mobileHeaders);
-// app.use(mobileAnalytics);
-// app.use(mobileNetworkOptimizer);
-// app.use(mobileResponseOptimizer);
-// app.use(mobileFileUpload);
-
-// Rate limiting for React Native apps
+// Rate limiting
 const limiter = rateLimit({
-  windowMs: reactNativeConfig.reactNative.performance.cacheDuration * 1000, // Use cache duration as window
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: reactNativeConfig.reactNative.performance.cacheDuration * 1000,
+  max: 100,
   message: {
     success: false,
-    message: 'Too many requests from this IP, please try again later.',
+    message: 'Too many requests, please try again later.',
     code: reactNativeConfig.errorCodes.NETWORK_ERROR
   },
   standardHeaders: true,
   legacyHeaders: false,
 });
-
-// Apply rate limiting to all routes
 app.use(limiter);
 
-// React Native specific rate limiting for auth routes
+// Auth-specific rate limiting
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: reactNativeConfig.reactNative.auth.maxDevices, // Use max devices as limit
+  windowMs: 15 * 60 * 1000,
+  max: reactNativeConfig.reactNative.auth.maxDevices,
   message: {
     success: false,
     message: 'Too many authentication attempts, please try again later.',
@@ -140,46 +92,24 @@ const authLimiter = rateLimit({
   skipSuccessfulRequests: true,
 });
 
-app.use(express.json({ limit: reactNativeConfig.reactNative.upload.maxFileSize })); // React Native file upload limit
-app.use(express.urlencoded({ extended: true, limit: reactNativeConfig.reactNative.upload.maxFileSize }));
-
-// Mobile request logging middleware
+// Minimal request logging
 app.use((req, res, next) => {
-  const userAgent = req.get('User-Agent') || '';
-  const platform = req.get('X-Platform') || 'unknown';
-  const appVersion = req.get('X-App-Version') || 'unknown';
-  const deviceId = req.get('X-Device-ID') || 'unknown';
-  
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - Platform: ${platform}, Version: ${appVersion}, Device: ${deviceId}`);
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
 });
 
-// Mobile-specific error handler - temporarily disabled for debugging
-// app.use(mobileErrorHandler);
+// Routes
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/follow', followRoutes);
+app.use('/api/posts', postsRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/chat', chatRoutes);
 
-// Global error handler for mobile apps
-app.use((err, req, res, next) => {
-  console.error('Global error:', err);
-  
-  // Mobile-optimized error response
-  const errorResponse = {
-    success: false,
-    message: err.message || 'Something went wrong',
-    code: err.code || 'INTERNAL_ERROR',
-    timestamp: new Date().toISOString()
-  };
-  
-  // Add stack trace only in development
-  if (process.env.NODE_ENV === 'development') {
-    errorResponse.stack = err.stack;
-  }
-  
-  res.status(err.status || 500).json(errorResponse);
-});
-
+// Swagger docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Health check endpoint for React Native apps
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({
     success: true,
@@ -196,51 +126,65 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Routes
-app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/profile', profileRoutes);
-app.use('/api/posts', postRoutes);
-app.use('/api/follow', followRoutes);
-app.use('/api/like', likeRoutes);
-app.use('/api/comment', commentRoutes);
-
+// Root endpoint
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: "Server Connected Successfully",
+    message: 'Server Connected Successfully',
     version: reactNativeConfig.reactNative.app.version,
     timestamp: new Date().toISOString(),
     reactNative: {
       app: reactNativeConfig.reactNative.app.name,
-      endpoints: {
-        auth: reactNativeConfig.endpoints.auth,
-        profile: reactNativeConfig.endpoints.profile,
-        posts: reactNativeConfig.endpoints.posts
-      }
+      endpoints: reactNativeConfig.endpoints
     }
   });
 });
 
-// 404 handler for React Native apps
+// 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
     message: 'Route not found',
     code: reactNativeConfig.errorCodes.NETWORK_ERROR,
     timestamp: new Date().toISOString(),
-    availableEndpoints: {
-      auth: reactNativeConfig.endpoints.auth,
-      profile: reactNativeConfig.endpoints.profile,
-      posts: reactNativeConfig.endpoints.posts
-    }
+    availableEndpoints: reactNativeConfig.endpoints
   });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Global error:', err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Something went wrong',
+    code: err.code || 'INTERNAL_ERROR',
+    timestamp: new Date().toISOString(),
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
+// Socket.io connection
+io.on('connection', (socket) => {
+  console.log('A user connected:', socket.id);
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
+  socket.on('join', (userId) => {
+    socket.join(userId);
+  });
+  socket.on('send_message', (data) => {
+    io.to(data.recipient).emit('receive_message', data);
+  });
+});
+
+// Start server
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📱 React Native API ready for ${reactNativeConfig.reactNative.app.name}`);
   console.log(`📱 Supported platforms: ${reactNativeConfig.reactNative.app.platforms.join(', ')}`);
   console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔧 Offline support: ${reactNativeConfig.reactNative.offline.enabled ? 'Enabled' : 'Disabled'}`);
   console.log(`🔔 Push notifications: ${reactNativeConfig.reactNative.pushNotifications.enabled ? 'Enabled' : 'Disabled'}`);
 });
+
+module.exports = { io, server };

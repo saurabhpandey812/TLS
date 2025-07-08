@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const { register, login, getProfile, updateAvatar, updateProfile } = require('../controllers/profileController');
 const requireAuth = require('../middleware/requireAuth');
-
+const profileController = require('../controllers/profileController');
 const upload = multer({ dest: 'uploads/' });
 
 /**

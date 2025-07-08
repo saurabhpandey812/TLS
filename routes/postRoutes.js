@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { createPost, getAllPosts, getPostsByUser } = require('../controllers/postController');
+const { createPost, getAllPosts, getPostsByUser } = require('../controllers/postsController');
 const requireAuth = require('../middleware/requireAuth');
 
 // Multer setup for local temp storage before Cloudinary upload
