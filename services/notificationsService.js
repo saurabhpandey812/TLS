@@ -5,7 +5,8 @@ async function getNotificationsService({ userId, page = 1, limit = 20 }) {
   const notifications = await Notification.find({ recipient: userId, isDeleted: false })
     .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(parseInt(limit));
+    .limit(parseInt(limit))
+    .populate('sender', 'name avatar'); // Populate sender with name and avatar
   const total = await Notification.countDocuments({ recipient: userId, isDeleted: false });
   return { success: true, notifications, total, page: parseInt(page), limit: parseInt(limit) };
 }

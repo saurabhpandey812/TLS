@@ -100,6 +100,48 @@ async function createPostService({ userId, content, images = [], video, io }) {
   });
   const populatedPost = await Post.findById(post._id).populate('author', 'name avatar');
   if (io) io.emit('new_post', populatedPost);
+
+  // Notify all accepted followers and following
+  const Follower = require('../models/Follower');
+  const Notification = require('../models/Notification');
+  const Profile = require('../models/Profile');
+  // Get all accepted followers
+  const followers = await Follower.find({ following: userId, status: 'accepted' }).populate('follower', 'name avatar');
+  // Get all accepted following
+  const following = await Follower.find({ follower: userId, status: 'accepted' }).populate('following', 'name avatar');
+  // Notify followers
+  for (const f of followers) {
+    await Notification.create({
+      recipient: f.follower._id,
+      sender: userId,
+      type: 'new_post',
+      title: 'New Post',
+      message: `${populatedPost.author.name} published a new post!`,
+      data: { postId: populatedPost._id, author: { name: populatedPost.author.name, avatar: populatedPost.author.avatar } },
+      isRead: false,
+    });
+    if (io) io.to(String(f.follower._id)).emit('new_post', {
+      post: populatedPost,
+      author: { name: populatedPost.author.name, avatar: populatedPost.author.avatar },
+    });
+  }
+  // Notify following
+  for (const f of following) {
+    await Notification.create({
+      recipient: f.following._id,
+      sender: userId,
+      type: 'new_post',
+      title: 'New Post',
+      message: `${populatedPost.author.name} published a new post!`,
+      data: { postId: populatedPost._id, author: { name: populatedPost.author.name, avatar: populatedPost.author.avatar } },
+      isRead: false,
+    });
+    if (io) io.to(String(f.following._id)).emit('new_post', {
+      post: populatedPost,
+      author: { name: populatedPost.author.name, avatar: populatedPost.author.avatar },
+    });
+  }
+
   return { success: true, message: 'Post created', post: populatedPost };
 }
 
