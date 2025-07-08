@@ -21,7 +21,7 @@ const profileSchema = new mongoose.Schema({
   },
   password: { type: String, required: true },
   avatar: { type: String, default: null },
-  bio: { type: String, default: null },
+  bio: { type: String, default: null, maxlength: 500 },
   website: { type: String, default: null },
   gender: { type: String, default: null },
   dob: { type: Date, default: null },
@@ -33,11 +33,24 @@ const profileSchema = new mongoose.Schema({
   mobile_verified: { type: Boolean, default: false },
   otp: { type: String },
   otpExpires: { type: Date },
+  location: { type: String },
+  // Professional fields
+  professionalTitle: { type: String },
+  practiceAreas: [{ type: String }],
+  yearsOfExperience: { type: Number, min: 0 },
+  barNumber: { type: String },
+  firm: { type: String },
+  verificationDoc: { type: String },
+  officeAddress: { type: String },
+  languages: [{ type: String }],
+  availability: { type: String, enum: ['Available', 'Busy', 'On Leave'], default: 'Available' },
+  linkedin: { type: String },
+  coverPhoto: { type: String },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
-// Remove any unique indexes on email and mobile
 profileSchema.index({ email: 1 }, { sparse: false, unique: false });
 profileSchema.index({ mobile: 1 }, { sparse: false, unique: false });
 

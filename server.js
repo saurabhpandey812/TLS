@@ -7,16 +7,26 @@ const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const swaggerUi = require('swagger-ui-express');
+const http = require('http');
+const socketIo = require('socket.io');
 
 // Local imports
 const connectDB = require('./config/db');
 const swaggerSpec = require('./config/swagger');
 const authRoutes = require('./routes/authRoutes');
 const profileRoutes = require('./routes/profileRoutes');
+const followerRoutes = require('./routes/followerRoutes');
 const postRoutes = require('./routes/postRoutes');
-const followRoutes = require('./routes/followRoutes');
-const likeRoutes = require('./routes/likeRoutes');
-const commentRoutes = require('./routes/commentRoutes');
+const postsRoutes = require('./routes/postsRoutes');
+const notificationsRoutes = require('./routes/notificationsRoutes');
+
+const app = express();
+const PORT = process.env.PORT || 8000;
+
+// Create HTTP server and attach socket.io
+const server = http.createServer(app);
+const io = socketIo(server, { cors: { origin: '*' } });
+app.set('io', io);
 
 // React Native config (inline for now)
 const reactNativeConfig = {
@@ -46,9 +56,6 @@ const reactNativeConfig = {
   }
 };
 
-const app = express();
-const PORT = process.env.PORT || 8000;
-
 // Connect to MongoDB
 connectDB();
 
@@ -56,8 +63,6 @@ connectDB();
 app.use(helmet());
 app.use(compression());
 app.use(cors()); // Allow all origins
-
-// Body parsers
 app.use(express.json({ limit: reactNativeConfig.reactNative.upload.maxFileSize }));
 app.use(express.urlencoded({ extended: true, limit: reactNativeConfig.reactNative.upload.maxFileSize }));
 
@@ -96,10 +101,11 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/profile', profileRoutes);
-app.use('/api/posts', postRoutes);
-app.use('/api/follow', followRoutes);
-app.use('/api/like', likeRoutes);
-app.use('/api/comment', commentRoutes);
+app.use('/api/follow', followerRoutes);
+app.use('/api/posts', postsRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/post', postRoutes); // If you have both postRoutes and postsRoutes
+app.use('/api', require('./routes/chatRoutes'));
 
 // Swagger docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -158,8 +164,22 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Socket.io connection
+io.on('connection', (socket) => {
+  console.log('A user connected:', socket.id);
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
+  socket.on('join', (userId) => {
+    socket.join(userId);
+  });
+  socket.on('send_message', (data) => {
+    io.to(data.recipient).emit('receive_message', data);
+  });
+});
+
 // Start server
-app.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📱 React Native API ready for ${reactNativeConfig.reactNative.app.name}`);
   console.log(`📱 Supported platforms: ${reactNativeConfig.reactNative.app.platforms.join(', ')}`);
@@ -167,3 +187,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🔧 Offline support: ${reactNativeConfig.reactNative.offline.enabled ? 'Enabled' : 'Disabled'}`);
   console.log(`🔔 Push notifications: ${reactNativeConfig.reactNative.pushNotifications.enabled ? 'Enabled' : 'Disabled'}`);
 });
+
+module.exports = { io, server };

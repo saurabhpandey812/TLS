@@ -129,7 +129,7 @@ const sendEmail = async (options) => {
     : signupTemplate;
 
   const mailOptions = {
-    from: process.env.SMPT_MAIL,
+    from: process.env.EMAIL_USER,
     to: options.email,
     subject: options.subject,
     text: options.message,

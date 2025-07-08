@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { signup, login, verifyEmailOtp, verifyMobileOtp, resendOtp } = require('../controllers/authController');
+const { signup, login, verifyEmailOtp, verifyMobileOtp, resendOtp, logout } = require('../controllers/authController');
+const requireAuth = require('../middleware/requireAuth');
 
 /**
  * @swagger
@@ -182,6 +183,20 @@ router.post('/resend-otp', resendOtp);
 
 /**
  * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: Logout the current user
+ *     tags: [Authentication]
+ *     responses:
+ *       200:
+ *         description: Logout successful
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/logout', logout);
+
+/**
+ * @swagger
  * /api/auth/forgot-password/request:
  *   post:
  *     summary: Request OTP for password reset (email or mobile)
@@ -286,5 +301,9 @@ router.post('/forgot-password/reset', require('../controllers/authController').f
  *       401:
  *         description: Unauthorized
  */
+
+router.get('/validate-token', requireAuth, (req, res) => {
+  res.json({ success: true, user: req.user });
+});
 
 module.exports = router;

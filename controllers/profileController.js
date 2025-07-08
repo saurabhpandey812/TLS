@@ -1,4 +1,8 @@
 const Profile = require('../models/Profile');
+const User = require('../models/User');
+const mongoose = require('mongoose');
+const { updateProfileService, searchUsersService, getProfileService, getCurrentUserProfileService, togglePrivacyService } = require('../services/profileService');
+const Follower = require('../models/Follower');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { uploadToCloudinary } = require('../services/cloudinary');

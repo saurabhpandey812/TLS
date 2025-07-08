@@ -7,22 +7,7 @@ const sendEmail = require('../services/emailService');
 const { sendSmsOtp, verifySmsOtp } = require('../services/twilioService');
 const generateUsername = require('../utils/generateUsername');
 
-/**
- * Normalizes a mobile number to E.164 format.
- * @param {string} mobile - The mobile number to normalize.
- * @returns {string} - The normalized mobile number.
- */
-
-const normalizeMobile = (mobile) => {
-  mobile = mobile.replace(/[^\d+]/g, '');
-  if (!mobile.startsWith('+')) {
-    mobile = `+91${mobile}`;
-  }
-  return mobile;
-};
-
-
-
+// Optimized signup function
 const signup = async (req, res) => {
   try {
     let { email, name, password, mobile } = req.body;
@@ -136,44 +121,24 @@ const signup = async (req, res) => {
   }
 };
 
-
-
-// Verifies the email OTP and completes the registration.
-
+// Optimized email OTP verification
 const verifyEmailOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
     if (!email || !otp) {
       return res.status(400).json({ success: false, message: 'Email and OTP are required.' });
     }
-    const user = await User.findOne({
-      email,
-      otp,
-      otpExpires: { $gt: Date.now() },
-    });
-    if (!user) {
-      return res.status(400).json({ success: false, message: 'Invalid OTP or OTP has expired.' });
-    }
-    user.email_verified = true;
-    user.otp = undefined;
-    user.otpExpires = undefined;
-    await user.save();
-    const token = generateToken(user);
-    res.status(200).json({
-      success: true,
-      message: 'Email verified successfully! Registration complete.',
-      user: { id: user._id, name: user.name, email: user.email, mobile: user.mobile },
-      accessToken: token,
-    });
+    
+    const result = await verifyEmailOtpService(email, otp);
+    if (!result.success) return res.status(400).json(result);
+    return res.status(200).json(result);
   } catch (error) {
     console.error('Email OTP Verification error:', error);
     res.status(500).json({ success: false, message: 'Something went wrong during OTP verification.' });
   }
 };
 
-
- // Verifies the mobile OTP using Twilio and completes the registration.
- 
+// Optimized mobile OTP verification
 const verifyMobileOtp = async (req, res) => {
   try {
     let { mobile, otp } = req.body;
@@ -189,26 +154,25 @@ const verifyMobileOtp = async (req, res) => {
       });
     }
 
-    // Verify OTP with Twilio
-    const verificationResult = await verifySmsOtp(mobile, otp);
-    if (!verificationResult.success) {
-      return res.status(400).json({
-        success: false,
-        message: verificationResult.message || 'Invalid OTP code.',
-      });
-    }
-
-    // Find and update user
     const user = await User.findOne({ mobile });
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found with this mobile number.' });
     }
 
-    user.mobile_verified = true;
-    await user.save();
+    // Verify OTP with Twilio
+    const isDev = process.env.NODE_ENV === 'development';
+    const verificationResult = await verifySmsOtp(mobile, otp, isDev);
+    if (!verificationResult.success) {
+      return res.status(400).json({ success: false, message: verificationResult.message || 'Invalid OTP.' });
+    }
+
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { mobile_verified: true } }
+    );
 
     const token = generateToken(user);
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Mobile verified successfully! Registration complete.',
       user: { id: user._id, name: user.name, email: user.email, mobile: user.mobile },
@@ -220,9 +184,7 @@ const verifyMobileOtp = async (req, res) => {
   }
 };
 
-
-//Resends a new OTP to the user's email or mobile.
-
+// Optimized resend OTP
 const resendOtp = async (req, res) => {
   try {
     const { email, mobile } = req.body;
@@ -311,9 +273,7 @@ const resendOtp = async (req, res) => {
   }
 };
 
-
-// Handles user login with either email or mobile.
-
+// Optimized login function
 const login = async (req, res) => {
   try {
     let { email, mobile, password } = req.body;
