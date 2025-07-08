@@ -187,4 +187,21 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🔔 Push notifications: ${reactNativeConfig.reactNative.pushNotifications.enabled ? 'Enabled' : 'Disabled'}`);
 });
 
+// Handle EADDRINUSE error and try next port
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is in use, trying a random free port...`);
+    server.listen(0, '0.0.0.0'); // 0 means random free port
+  } else {
+    throw err;
+  }
+});
+
+server.on('listening', () => {
+  const address = server.address();
+  if (address && typeof address === 'object') {
+    console.log(`✅ Server is listening on ${address.address}:${address.port}`);
+  }
+});
+
 module.exports = { io, server };
