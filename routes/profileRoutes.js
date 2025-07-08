@@ -194,5 +194,6 @@ router.post('/users/public-key', profileController.setPublicKey);
 router.get('/users/:userId/public-key', profileController.getPublicKey);
 router.post('/block', requireAuth, profileController.blockUser);
 router.post('/unblock', requireAuth, profileController.unblockUser);
+router.get('/users/:userId/connections', profileController.getConnections);
 
 module.exports = router;

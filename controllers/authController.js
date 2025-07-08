@@ -114,4 +114,10 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { signup, login, verifyEmailOtp, verifyMobileOtp, resendOtp };
+// Logout controller
+const logout = async (req, res) => {
+  // Optionally clear cookies or tokens here
+  return res.status(200).json({ success: true, message: 'Logged out successfully.' });
+};
+
+module.exports = { signup, login, verifyEmailOtp, verifyMobileOtp, resendOtp, logout };

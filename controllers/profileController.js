@@ -2,6 +2,7 @@ const Profile = require('../models/Profile');
 const User = require('../models/User');
 const mongoose = require('mongoose');
 const { updateProfileService, searchUsersService, getProfileService, getCurrentUserProfileService, togglePrivacyService } = require('../services/profileService');
+const Follower = require('../models/Follower');
 
 const getProfile = async (req, res) => {
   try {
@@ -110,6 +111,25 @@ const unblockUser = async (req, res) => {
   }
 };
 
+const getConnections = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    // Find all users this user follows
+    const following = await Follower.find({ follower: userId, status: 'accepted' }).select('following');
+    // Find all users who follow this user
+    const followers = await Follower.find({ following: userId, status: 'accepted' }).select('follower');
+    // Get mutual connections (intersection)
+    const followingIds = following.map(f => f.following.toString());
+    const followerIds = followers.map(f => f.follower.toString());
+    const mutualIds = followingIds.filter(id => followerIds.includes(id));
+    // Fetch profile info for mutual connections
+    const profiles = await Profile.find({ _id: { $in: mutualIds } }).select('_id name avatar');
+    res.json(profiles);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
@@ -120,4 +140,5 @@ module.exports = {
   getPublicKey,
   blockUser,
   unblockUser,
+  getConnections,
 };
