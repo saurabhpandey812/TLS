@@ -9,7 +9,7 @@ const postsRoutes = require('./routes/postsRoutes');
 const notificationsRoutes = require('./routes/notificationsRoutes');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
-
+// using epress everything working 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
