@@ -59,11 +59,33 @@ async function sendFollowRequestService({ userId, targetUserId, user, io }) {
       recipient: targetUserId,
       sender: userId,
       type: notifType,
-      title: targetUser.isPrivate ? 'New Follow Request' : 'New Follower',
-      message: targetUser.isPrivate 
-        ? `${user?.name || 'Someone'} wants to follow you`
-        : `${user?.name || 'Someone'} started following you`,
-      data: { followerId: userId }
+      title: targetUser.isPrivate
+        ? 'You have a new follow request!'
+        : 'You have a new follower!',
+      message: targetUser.isPrivate
+        ? `${user?.name || 'A user'} would like to follow you. You can accept or reject this request from your follow requests tab.`
+        : `${user?.name || 'A user'} is now following you. Check out their profile or send a message!`,
+      data: {
+        followerId: userId,
+        followerName: user?.name || '',
+        followerAvatar: user?.avatar || '',
+        deepLink: targetUser.isPrivate
+          ? 'app://requests' // Deep link to requests tab
+          : `app://profile/${userId}`,
+        buttons: targetUser.isPrivate
+          ? [
+              { text: 'View Requests', action: 'app://requests' },
+              { text: 'View Profile', action: `app://profile/${userId}` }
+            ]
+          : [
+              { text: 'View Profile', action: `app://profile/${userId}` },
+              { text: 'Message', action: `app://chat/${userId}` }
+            ],
+        context: {
+          isPrivate: targetUser.isPrivate,
+          timestamp: new Date(),
+        },
+      },
     });
     await notification.save();
   }
@@ -118,9 +140,21 @@ async function acceptFollowRequestService({ userId, followerId, user, io }) {
     recipient: followerId,
     sender: userId,
     type: 'follow_accepted',
-    title: 'Follow Request Accepted',
-    message: `${user?.name || 'Someone'} accepted your follow request`,
-    data: { followingId: userId }
+    title: 'Your follow request was accepted!',
+    message: `${user?.name || 'The user'} has accepted your follow request. You can now view their posts and interact with them.`,
+    data: {
+      followingId: userId,
+      followingName: user?.name || '',
+      followingAvatar: user?.avatar || '',
+      deepLink: `app://profile/${userId}`,
+      buttons: [
+        { text: 'View Profile', action: `app://profile/${userId}` },
+        { text: 'Message', action: `app://chat/${userId}` }
+      ],
+      context: {
+        timestamp: new Date(),
+      },
+    },
   });
   await notification.save();
   if (io) {
@@ -145,9 +179,20 @@ async function rejectFollowRequestService({ userId, followerId, user, io }) {
     recipient: followerId,
     sender: userId,
     type: 'follow_rejected',
-    title: 'Follow Request Rejected',
-    message: `${user?.name || 'Someone'} rejected your follow request`,
-    data: { followingId: userId }
+    title: 'Your follow request was declined',
+    message: `${user?.name || 'The user'} has declined your follow request. You can try following other users or connect later.`,
+    data: {
+      followingId: userId,
+      followingName: user?.name || '',
+      followingAvatar: user?.avatar || '',
+      deepLink: `app://profile/${userId}`,
+      buttons: [
+        { text: 'View Profile', action: `app://profile/${userId}` } // Only view profile for now
+      ],
+      context: {
+        timestamp: new Date(),
+      },
+    },
   });
   await notification.save();
   if (io) {

@@ -45,6 +45,14 @@ const userSchema = new mongoose.Schema({
   // Account status
   isActive: { type: Boolean, default: true },
   lastSeen: { type: Date, default: Date.now },
+
+  // Blocked users
+  blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  
+  publicKey: {
+    type: String,
+    required: false, // Only required for chat users
+  },
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });

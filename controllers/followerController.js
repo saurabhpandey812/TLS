@@ -115,6 +115,29 @@ const checkFollowStatus = async (req, res) => {
   }
 };
 
+// Remove a follower
+const removeFollower = async (req, res) => {
+  try {
+    const { userId } = req.user; // current user (the one being followed)
+    const { followerId } = req.params;
+    const followRelationship = await Follower.findOne({
+      follower: followerId,
+      following: userId,
+      status: 'accepted'
+    });
+    if (!followRelationship) {
+      return res.status(404).json({ message: 'This user is not your follower' });
+    }
+    await Follower.findByIdAndDelete(followRelationship._id);
+    await Profile.findByIdAndUpdate(userId, { $inc: { followersCount: -1 } });
+    await Profile.findByIdAndUpdate(followerId, { $inc: { followingCount: -1 } });
+    return res.status(200).json({ success: true, message: 'Follower removed' });
+  } catch (error) {
+    console.error('Error removing follower:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 module.exports = {
   sendFollowRequest,
   acceptFollowRequest,
@@ -123,5 +146,6 @@ module.exports = {
   getPendingFollowRequests,
   getFollowers,
   getFollowing,
-  checkFollowStatus
+  checkFollowStatus,
+  removeFollower
 };

@@ -72,10 +72,52 @@ const togglePrivacy = async (req, res) => {
   }
 };
 
+const setPublicKey = async (req, res) => {
+  const { userId, publicKey } = req.body;
+  if (!userId || !publicKey) return res.status(400).json({ error: 'Missing userId or publicKey' });
+  await User.findByIdAndUpdate(userId, { publicKey });
+  res.json({ success: true });
+};
+
+const getPublicKey = async (req, res) => {
+  const { userId } = req.params;
+  const user = await User.findById(userId, 'publicKey');
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  res.json({ publicKey: user.publicKey });
+};
+
+const blockUser = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const { targetUserId } = req.body;
+    if (!targetUserId) return res.status(400).json({ success: false, message: 'Missing targetUserId' });
+    await User.findByIdAndUpdate(userId, { $addToSet: { blockedUsers: targetUserId } });
+    return res.status(200).json({ success: true, message: 'User blocked' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+const unblockUser = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const { targetUserId } = req.body;
+    if (!targetUserId) return res.status(400).json({ success: false, message: 'Missing targetUserId' });
+    await User.findByIdAndUpdate(userId, { $pull: { blockedUsers: targetUserId } });
+    return res.status(200).json({ success: true, message: 'User unblocked' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
   searchUsers,
   getCurrentUserProfile,
   togglePrivacy,
+  setPublicKey,
+  getPublicKey,
+  blockUser,
+  unblockUser,
 };

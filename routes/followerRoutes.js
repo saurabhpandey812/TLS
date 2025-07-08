@@ -27,4 +27,7 @@ router.get('/following/:targetUserId', requireAuth, followerController.getFollow
 // Check follow status between logged-in user and target user
 router.get('/status/:targetUserId', requireAuth, followerController.checkFollowStatus);
 
+// Remove a follower
+router.delete('/remove/:followerId', requireAuth, followerController.removeFollower);
+
 module.exports = router; 

@@ -190,5 +190,9 @@ router.get('/me', requireAuth, profileController.getCurrentUserProfile);
 router.get('/:userId', profileController.getProfile);
 router.patch('/:userId', profileController.updateProfile);
 router.patch('/privacy/toggle', requireAuth, profileController.togglePrivacy);
+router.post('/users/public-key', profileController.setPublicKey);
+router.get('/users/:userId/public-key', profileController.getPublicKey);
+router.post('/block', requireAuth, profileController.blockUser);
+router.post('/unblock', requireAuth, profileController.unblockUser);
 
 module.exports = router;

@@ -107,11 +107,14 @@ async function getProfileService(userId) {
  */
 async function getCurrentUserProfileService({ userId, userEmail }) {
   let profile = null;
+  let user = null;
   if (userId) {
     profile = await Profile.findById(userId).select('-password -otp -otpExpires');
+    user = await require('../models/User').findById(userId).select('blockedUsers');
   }
   if (!profile && userEmail) {
     profile = await Profile.findOne({ email: userEmail }).select('-password -otp -otpExpires');
+    user = await require('../models/User').findOne({ email: userEmail }).select('blockedUsers');
   }
   if (!profile) {
     return { success: false, message: 'Profile not found for this user.' };
@@ -121,6 +124,7 @@ async function getCurrentUserProfileService({ userId, userEmail }) {
   profileObj.bio = profileObj.bio || '';
   profileObj.location = profileObj.location || '';
   profileObj.website = profileObj.website || '';
+  profileObj.blockedUsers = user?.blockedUsers || [];
   return { success: true, data: profileObj };
 }
 

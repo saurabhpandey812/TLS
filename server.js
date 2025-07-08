@@ -15,11 +15,9 @@ const PORT = process.env.PORT || 4000;
 
 // Create HTTP server and attach socket.io
 const http = require('http');
+const socketIo = require('socket.io');
 const server = http.createServer(app);
-const { Server } = require('socket.io');
-const io = new Server(server, {
-  cors: { origin: '*' }
-});
+const io = socketIo(server, { cors: { origin: '*' } });
 
 // Make io accessible in controllers
 app.set('io', io);
@@ -38,6 +36,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/follow', followerRoutes);
 app.use('/api', postsRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api', require('./routes/chatRoutes'));
 
 app.get('/', (req, res) => {
   res.send("Hello World");
@@ -49,9 +48,17 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
   });
+  socket.on('join', (userId) => {
+    socket.join(userId);
+  });
+  socket.on('send_message', (data) => {
+    io.to(data.recipient).emit('receive_message', data);
+  });
 });
 
 // Start server
 server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+module.exports = { io, server };
