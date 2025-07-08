@@ -97,8 +97,9 @@ const corsOptions = {
     if (!origin) return callback(null, true);
     const allowedOrigins = [
       ...reactNativeConfig.reactNative.corsOrigins,
-      process.env.FRONTEND_URL, // Your production frontend URL
-      process.env.MOBILE_APP_URL // Your mobile app URL if different
+      process.env.FRONTEND_URL,
+      process.env.MOBILE_APP_URL,
+      'https://tls-maf3.onrender.com' // Added Render domain for CORS
     ].filter(Boolean);
     // Allow all origins in development for easier testing
     if (process.env.NODE_ENV !== 'production') {
