@@ -38,6 +38,7 @@ const profileSchema = new mongoose.Schema({
   availability: { type: String, enum: ['Available', 'Busy', 'On Leave'], default: 'Available' },
   linkedin: { type: String },
   coverPhoto: { type: String },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });

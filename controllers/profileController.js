@@ -123,8 +123,19 @@ const getConnections = async (req, res) => {
     const followerIds = followers.map(f => f.follower.toString());
     const mutualIds = followingIds.filter(id => followerIds.includes(id));
     // Fetch profile info for mutual connections
-    const profiles = await Profile.find({ _id: { $in: mutualIds } }).select('_id name avatar');
-    res.json(profiles);
+    const profiles = await Profile.find({ _id: { $in: mutualIds } })
+      .select('_id name avatar user')
+      .populate('user', '_id'); // Populate the user field
+
+    // Return user._id instead of profile._id
+    const result = profiles.map(profile => ({
+      _id: profile.user?._id, // This is the User ID
+      name: profile.name,
+      avatar: profile.avatar,
+      profileId: profile._id, // Optionally include the profile ID
+    }));
+
+    res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

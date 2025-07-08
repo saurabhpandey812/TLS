@@ -17,6 +17,8 @@ async function findUserByEmail(email) {
   return User.findOne({ email }).select('-password -otp -otpExpires');
 }
 
+
+
 module.exports = {
   findProfileById,
   findProfileByEmail,
